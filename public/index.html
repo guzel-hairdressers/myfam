@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>MyFam - Private Lightweight Voice & Video</title>
+  <meta name="description" content="Barebones lightweight video and voice calling for family across borders. No VPN, no accounts, no profiles.">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Top App Header -->
+    <header class="app-header">
+      <div class="logo">
+        <svg class="logo-icon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span>MyFam</span>
+      </div>
+      <div id="serverStatusBadge" class="status-badge status-connecting">
+        <span class="status-dot"></span>
+        <span id="serverStatusText">Connecting...</span>
+      </div>
+    </header>
+
+    <!-- Main View Switcher -->
+    <main class="main-content">
+      
+      <!-- Lobby / Main View -->
+      <section id="lobbyView" class="view active">
+        <div class="lobby-scroll-container">
+          
+          <!-- Call with Code Card -->
+          <div class="card join-card">
+            <div class="card-header">
+              <h2>Connect with Code</h2>
+              <p class="card-subtitle">No accounts, no profiles. Nothing is saved on any server.</p>
+            </div>
+
+            <form id="joinForm" onsubmit="return false;">
+              <!-- Code Input with Auto-format (e.g. 742-918) -->
+              <div class="form-group">
+                <label for="codeInput">Call Code</label>
+                <div class="code-input-row">
+                  <input type="text" id="codeInput" class="code-input" placeholder="e.g. 742-918" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="characters" required>
+                  <button type="button" id="newCodeBtn" class="btn-secondary" title="Generate New 6-Digit Code">New Code</button>
+                </div>
+              </div>
+
+              <!-- Your Name (Optional, saved locally) -->
+              <div class="form-group">
+                <label for="nameInput">Your Name <span class="label-optional">(How they see you)</span></label>
+                <input type="text" id="nameInput" placeholder="e.g. Alex, Mom, Dad" maxlength="24">
+              </div>
+
+              <!-- Mode Selection -->
+              <div class="form-group">
+                <label>Call Mode</label>
+                <div class="segmented-control">
+                  <button type="button" class="segment-btn active" data-mode="audio-video">Video + Voice</button>
+                  <button type="button" class="segment-btn" data-mode="audio-only">Voice Only (16 kbps)</button>
+                </div>
+              </div>
+
+              <!-- Bandwidth Preset -->
+              <div class="form-group">
+                <label for="presetSelect">Compression & Quality</label>
+                <select id="presetSelect" class="select-control">
+                  <option value="potato">Ultra-Low (~50 kbps video / 16 kbps audio - 2G/3G)</option>
+                  <option value="low" selected>Low Bandwidth (~120 kbps - Recommended)</option>
+                  <option value="balanced">Balanced (~350 kbps)</option>
+                  <option value="hd">High Quality (~800 kbps - Fast WiFi)</option>
+                </select>
+              </div>
+
+              <!-- Stealth Mode Toggle -->
+              <div class="form-group-checkbox">
+                <label class="checkbox-label">
+                  <input type="checkbox" id="forceStealthModeCheckbox">
+                  <span class="checkbox-custom"></span>
+                  <span>
+                    <strong>Force Stealth Tunnel Mode (WSS 443)</strong>
+                    <small>Bypasses UDP blocks and WebRTC censorship via standard TLS port 443</small>
+                  </span>
+                </label>
+              </div>
+
+              <div id="joinError" class="alert-box error hidden"></div>
+
+              <button type="submit" id="joinBtn" class="btn-primary btn-large">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+                </svg>
+                <span>Start / Join Call</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- Local Family Contacts Card (Saved ONLY on this device) -->
+          <div class="card contacts-card">
+            <div class="contacts-header">
+              <div>
+                <h3>My Contacts</h3>
+                <p class="contacts-subtitle">Saved privately on this phone/browser only</p>
+              </div>
+              <button type="button" id="addContactBtn" class="btn-secondary btn-sm">+ Add Contact</button>
+            </div>
+
+            <div id="contactsList" class="contacts-list">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Active Call View -->
+      <section id="callView" class="view">
+        <!-- Diagnostic Top HUD -->
+        <div class="call-hud">
+          <div class="hud-item hud-room">
+            <span class="hud-label">Code:</span>
+            <span id="hudCodeDisplay" class="hud-value">--</span>
+            <button id="copyInviteBtn" class="btn-icon-tiny" title="Copy Call Invite Link">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="hud-item hud-ping">
+            <span class="hud-label">Ping:</span>
+            <span id="hudPing" class="hud-value">-- ms</span>
+          </div>
+          <div class="hud-item hud-transport">
+            <span class="hud-label">Route:</span>
+            <span id="hudTransport" class="hud-badge">Connecting</span>
+          </div>
+          <div class="hud-item hud-bitrate">
+            <span class="hud-label">Bitrate:</span>
+            <span id="hudBitrate" class="hud-value">-- kbps</span>
+          </div>
+        </div>
+
+        <!-- Video Stage -->
+        <div class="video-stage">
+          <!-- Remote Video Container -->
+          <div id="remoteContainer" class="video-box remote-video-box">
+            <video id="remoteVideo" autoplay playsinline></video>
+            <canvas id="remoteCanvas" class="stealth-canvas hidden"></canvas>
+            
+            <!-- Avatar Display when remote video is off / audio-only -->
+            <div id="remoteAvatar" class="avatar-display">
+              <div class="avatar-circle">
+                <span id="remoteInitials">?</span>
+                <div id="remoteSpeakingWave" class="speaking-ring"></div>
+              </div>
+              <div class="remote-name-wrapper">
+                <span id="remoteNameTag" class="name-tag">Waiting for them to connect...</span>
+                <button id="renameRemoteBtn" class="btn-icon-tiny" title="Change name in your contacts">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Local Video Container (Picture-in-Picture) -->
+          <div id="localContainer" class="video-box local-video-box">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <canvas id="localCanvas" class="stealth-canvas hidden"></canvas>
+            
+            <div id="localAvatar" class="avatar-display avatar-mini hidden">
+              <div class="avatar-circle avatar-circle-mini">
+                <span id="localInitials">You</span>
+                <div id="localSpeakingWave" class="speaking-ring"></div>
+              </div>
+            </div>
+
+            <div class="local-name-tag">You</div>
+          </div>
+        </div>
+
+        <!-- Bottom Toolbar Controls -->
+        <footer class="call-controls">
+          <!-- Mic Toggle -->
+          <button id="toggleMicBtn" class="ctrl-btn" title="Toggle Microphone" aria-label="Toggle Microphone">
+            <svg class="icon-mic-on" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+            <svg class="icon-mic-off hidden" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+              <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+              <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+              <line x1="12" y1="19" x2="12" y2="23"></line>
+              <line x1="8" y1="23" x2="16" y2="23"></line>
+            </svg>
+          </button>
+
+          <!-- Camera Toggle -->
+          <button id="toggleCamBtn" class="ctrl-btn" title="Toggle Camera" aria-label="Toggle Camera">
+            <svg class="icon-cam-on" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="23 7 16 12 23 17 23 7"></polygon>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+            </svg>
+            <svg class="icon-cam-off hidden" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="1" y1="1" x2="23" y2="23"></line>
+              <path d="M21 21l-3.6-2.7L23 17V7l-7 5V5a2 2 0 0 0-2-2H4.8M1 1l22 22"></path>
+              <path d="M1 5v14a2 2 0 0 0 2 2h14"></path>
+            </svg>
+          </button>
+
+          <!-- Flip Camera (Mobile) -->
+          <button id="flipCamBtn" class="ctrl-btn" title="Switch Front/Back Camera" aria-label="Flip Camera">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 10c0-4.418-3.582-8-8-8s-8 3.582-8 8c0 2.21.895 4.21 2.343 5.657L4 18h6v-6l-2.293 2.293C6.645 13.231 6 11.7 6 10c0-3.314 2.686-6 6-6s6 2.686 6 6c0 1.7-.645 3.231-1.707 4.293L14 12v6h6l-2.343-2.343C19.105 14.21 20 12.21 20 10z"/>
+            </svg>
+          </button>
+
+          <!-- Screen Share (Desktop) -->
+          <button id="shareScreenBtn" class="ctrl-btn" title="Share Screen" aria-label="Share Screen">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+          </button>
+
+          <!-- Settings Trigger -->
+          <button id="openSettingsBtn" class="ctrl-btn" title="Tune Quality / Bypass" aria-label="Settings">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+
+          <!-- Hangup -->
+          <button id="hangupBtn" class="ctrl-btn ctrl-btn-danger" title="Leave Call" aria-label="Leave Call">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path d="M12 9c-1.6 0-3.15.25-4.6.72v3.1c0 .39-.23.74-.56.9-.98.49-1.87 1.12-2.66 1.85-.18.18-.43.28-.7.28-.28 0-.53-.11-.71-.29L.29 13.08c-.18-.17-.29-.42-.29-.7 0-.28.11-.53.29-.71C3.34 8.78 7.46 7 12 7s8.66 1.78 11.71 4.67c.18.18.29.43.29.71 0 .28-.11.53-.29.71l-2.48 2.48c-.18.18-.43.29-.71.29-.27 0-.52-.11-.7-.28-.79-.74-1.69-1.36-2.67-1.85-.33-.16-.56-.5-.56-.9v-3.1C15.15 9.25 13.6 9 12 9z"/>
+            </svg>
+          </button>
+        </footer>
+      </section>
+
+    </main>
+
+    <!-- Contact Edit / Add Modal -->
+    <div id="contactModal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3 id="contactModalTitle">Save to Contacts</h3>
+          <button id="closeContactModalBtn" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="contactNameInput">Contact Name</label>
+            <input type="text" id="contactNameInput" placeholder="e.g. Mom, Dad, Anna" maxlength="24">
+          </div>
+          <div class="form-group">
+            <label for="contactCodeInput">Call Code</label>
+            <input type="text" id="contactCodeInput" placeholder="e.g. 742-918" maxlength="8">
+          </div>
+          <p class="text-hint">This contact is stored only in this browser's local memory.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" id="saveContactBtn" class="btn-primary">Save Contact</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quality & Diagnostics Modal -->
+    <div id="settingsModal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>Call Quality & Diagnostics</h3>
+          <button id="closeSettingsBtn" class="btn-close">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="modalPresetSelect">Compression / Quality Preset</label>
+            <select id="modalPresetSelect" class="select-control">
+              <option value="potato">Ultra-Low (~50 kbps video / 16 kbps audio)</option>
+              <option value="low">Low (~120 kbps video)</option>
+              <option value="balanced">Balanced (~350 kbps video)</option>
+              <option value="hd">High Definition (~800 kbps video)</option>
+            </select>
+          </div>
+
+          <div class="form-group-checkbox">
+            <label class="checkbox-label">
+              <input type="checkbox" id="modalStealthToggle">
+              <span class="checkbox-custom"></span>
+              <span>
+                <strong>Force Stealth Tunnel Mode (WSS 443)</strong>
+                <small>Bypasses UDP throttling and DPI by routing media directly over TLS port 443</small>
+              </span>
+            </label>
+          </div>
+
+          <div class="stats-panel">
+            <h4>Live Connection Diagnostics</h4>
+            <div class="stats-grid">
+              <div class="stat-box">
+                <span class="stat-num" id="statPing">--</span>
+                <span class="stat-name">Round-Trip Ping</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-num" id="statLoss">0%</span>
+                <span class="stat-name">Packet Loss</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-num" id="statBitrate">--</span>
+                <span class="stat-name">Bitrate</span>
+              </div>
+              <div class="stat-box">
+                <span class="stat-num" id="statProtocol">--</span>
+                <span class="stat-name">Protocol</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="applySettingsBtn" class="btn-primary">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden"></div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

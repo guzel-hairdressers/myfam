@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # MyFam calling app
+  myfam:
+    build: .
+    container_name: myfam_app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - NODE_ENV=production
+      # Optional custom Coturn TURN server credentials
+      # - TURN_URL=turns:turn.yourdomain.com:443?transport=tcp
+      # - TURN_USERNAME=myuser
+      # - TURN_CREDENTIAL=mypassword
+
+  # Optional Caddy reverse proxy for 100% automated Let's Encrypt SSL on port 443
+  # Uncomment the block below and replace 'call.yourdomain.com' with your actual domain
+  # caddy:
+  #   image: caddy:2-alpine
+  #   container_name: myfam_caddy
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - caddy_data:/data
+  #     - caddy_config:/config
+  #   command: caddy reverse-proxy --from call.yourdomain.com --to myfam:3000
+
+# volumes:
+#   caddy_data:
+#   caddy_config:
