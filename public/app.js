@@ -11,12 +11,6 @@
  */
 
 (() => {
-  // Automatically ensure HTTPS on mobile for camera & mic access
-  if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-    window.location.href = window.location.href.replace('http:', 'https:');
-    return;
-  }
-
   // Quality & Bandwidth Presets
   const PRESETS = {
     potato: {
@@ -103,75 +97,71 @@
   // ICE Candidate Queue to prevent race conditions
   let pendingCandidates = [];
 
-  // DOM Elements
-  const els = {
-    serverStatusBadge: document.getElementById('serverStatusBadge'),
-    serverStatusText: document.getElementById('serverStatusText'),
-    
-    lobbyView: document.getElementById('lobbyView'),
-    callView: document.getElementById('callView'),
-    
-    joinForm: document.getElementById('joinForm'),
-    codeInput: document.getElementById('codeInput'),
-    newCodeBtn: document.getElementById('newCodeBtn'),
-    nameInput: document.getElementById('nameInput'),
-    segmentBtns: document.querySelectorAll('.segment-btn'),
-    presetSelect: document.getElementById('presetSelect'),
-    forceStealthCheckbox: document.getElementById('forceStealthModeCheckbox'),
-    joinBtn: document.getElementById('joinBtn'),
-    joinError: document.getElementById('joinError'),
-    
-    contactsList: document.getElementById('contactsList'),
-    addContactBtn: document.getElementById('addContactBtn'),
-    contactModal: document.getElementById('contactModal'),
-    contactModalTitle: document.getElementById('contactModalTitle'),
-    contactNameInput: document.getElementById('contactNameInput'),
-    contactCodeInput: document.getElementById('contactCodeInput'),
-    closeContactModalBtn: document.getElementById('closeContactModalBtn'),
-    saveContactBtn: document.getElementById('saveContactBtn'),
-    
-    hudCodeDisplay: document.getElementById('hudCodeDisplay'),
-    hudPing: document.getElementById('hudPing'),
-    hudTransport: document.getElementById('hudTransport'),
-    hudBitrate: document.getElementById('hudBitrate'),
-    copyInviteBtn: document.getElementById('copyInviteBtn'),
-    quickStealthBtn: document.getElementById('quickStealthBtn'),
-    
-    remoteVideo: document.getElementById('remoteVideo'),
-    localVideo: document.getElementById('localVideo'),
-    remoteCanvas: document.getElementById('remoteCanvas'),
-    localCanvas: document.getElementById('localCanvas'),
-    remoteAvatar: document.getElementById('remoteAvatar'),
-    localAvatar: document.getElementById('localAvatar'),
-    remoteInitials: document.getElementById('remoteInitials'),
-    localInitials: document.getElementById('localInitials'),
-    remoteNameTag: document.getElementById('remoteNameTag'),
-    renameRemoteBtn: document.getElementById('renameRemoteBtn'),
-    remoteSpeakingWave: document.getElementById('remoteSpeakingWave'),
-    localSpeakingWave: document.getElementById('localSpeakingWave'),
-    
-    toggleMicBtn: document.getElementById('toggleMicBtn'),
-    toggleCamBtn: document.getElementById('toggleCamBtn'),
-    flipCamBtn: document.getElementById('flipCamBtn'),
-    shareScreenBtn: document.getElementById('shareScreenBtn'),
-    openSettingsBtn: document.getElementById('openSettingsBtn'),
-    hangupBtn: document.getElementById('hangupBtn'),
-    
-    settingsModal: document.getElementById('settingsModal'),
-    closeSettingsBtn: document.getElementById('closeSettingsBtn'),
-    applySettingsBtn: document.getElementById('applySettingsBtn'),
-    modalPresetSelect: document.getElementById('modalPresetSelect'),
-    modalStealthToggle: document.getElementById('modalStealthToggle'),
-    statPing: document.getElementById('statPing'),
-    statLoss: document.getElementById('statLoss'),
-    statBitrate: document.getElementById('statBitrate'),
-    statProtocol: document.getElementById('statProtocol'),
-    
-    toast: document.getElementById('toast')
-  };
+  // DOM Elements holder
+  const els = {};
+
+  function initElements() {
+    els.serverStatusBadge = document.getElementById('serverStatusBadge');
+    els.serverStatusText = document.getElementById('serverStatusText');
+    els.lobbyView = document.getElementById('lobbyView');
+    els.callView = document.getElementById('callView');
+    els.joinForm = document.getElementById('joinForm');
+    els.codeInput = document.getElementById('codeInput');
+    els.newCodeBtn = document.getElementById('newCodeBtn');
+    els.nameInput = document.getElementById('nameInput');
+    els.segmentBtns = document.querySelectorAll('.segment-btn');
+    els.presetSelect = document.getElementById('presetSelect');
+    els.forceStealthCheckbox = document.getElementById('forceStealthModeCheckbox');
+    els.joinBtn = document.getElementById('joinBtn');
+    els.joinError = document.getElementById('joinError');
+    els.contactsList = document.getElementById('contactsList');
+    els.addContactBtn = document.getElementById('addContactBtn');
+    els.contactModal = document.getElementById('contactModal');
+    els.contactModalTitle = document.getElementById('contactModalTitle');
+    els.contactNameInput = document.getElementById('contactNameInput');
+    els.contactCodeInput = document.getElementById('contactCodeInput');
+    els.closeContactModalBtn = document.getElementById('closeContactModalBtn');
+    els.saveContactBtn = document.getElementById('saveContactBtn');
+    els.hudCodeDisplay = document.getElementById('hudCodeDisplay');
+    els.hudPing = document.getElementById('hudPing');
+    els.hudTransport = document.getElementById('hudTransport');
+    els.hudBitrate = document.getElementById('hudBitrate');
+    els.copyInviteBtn = document.getElementById('copyInviteBtn');
+    els.quickStealthBtn = document.getElementById('quickStealthBtn');
+    els.remoteVideo = document.getElementById('remoteVideo');
+    els.localVideo = document.getElementById('localVideo');
+    els.remoteCanvas = document.getElementById('remoteCanvas');
+    els.localCanvas = document.getElementById('localCanvas');
+    els.remoteAvatar = document.getElementById('remoteAvatar');
+    els.localAvatar = document.getElementById('localAvatar');
+    els.remoteInitials = document.getElementById('remoteInitials');
+    els.localInitials = document.getElementById('localInitials');
+    els.remoteNameTag = document.getElementById('remoteNameTag');
+    els.renameRemoteBtn = document.getElementById('renameRemoteBtn');
+    els.remoteSpeakingWave = document.getElementById('remoteSpeakingWave');
+    els.localSpeakingWave = document.getElementById('localSpeakingWave');
+    els.toggleMicBtn = document.getElementById('toggleMicBtn');
+    els.toggleCamBtn = document.getElementById('toggleCamBtn');
+    els.flipCamBtn = document.getElementById('flipCamBtn');
+    els.shareScreenBtn = document.getElementById('shareScreenBtn');
+    els.openSettingsBtn = document.getElementById('openSettingsBtn');
+    els.hangupBtn = document.getElementById('hangupBtn');
+    els.settingsModal = document.getElementById('settingsModal');
+    els.closeSettingsBtn = document.getElementById('closeSettingsBtn');
+    els.applySettingsBtn = document.getElementById('applySettingsBtn');
+    els.modalPresetSelect = document.getElementById('modalPresetSelect');
+    els.modalStealthToggle = document.getElementById('modalStealthToggle');
+    els.statPing = document.getElementById('statPing');
+    els.statLoss = document.getElementById('statLoss');
+    els.statBitrate = document.getElementById('statBitrate');
+    els.statProtocol = document.getElementById('statProtocol');
+    els.toast = document.getElementById('toast');
+  }
 
   // --- Initialize App ---
   function init() {
+    console.log('[MyFam] Initializing application...');
+    initElements();
     setupURLParams();
     setupEventListeners();
     connectSignaling();
@@ -1262,7 +1252,13 @@
 
   // --- Join & Leave Handlers ---
   async function handleJoinSubmit() {
+    console.log('[MyFam] handleJoinSubmit triggered');
     hideJoinError();
+
+    if (!els.codeInput) {
+      console.error('[MyFam] codeInput element missing');
+      return;
+    }
 
     const rawCode = els.codeInput.value;
     const formatted = formatCode(rawCode);
@@ -1273,54 +1269,64 @@
       return;
     }
 
-    const name = els.nameInput.value.trim() || 'Family Member';
+    const name = (els.nameInput ? els.nameInput.value.trim() : '') || 'Family Member';
     state.userName = name;
-    state.forceStealth = els.forceStealthCheckbox.checked;
+    state.forceStealth = els.forceStealthCheckbox ? els.forceStealthCheckbox.checked : false;
     localStorage.setItem('myfam_myname', name);
 
     // Visual button feedback
-    const originalBtnContent = els.joinBtn.innerHTML;
-    els.joinBtn.disabled = true;
-    els.joinBtn.innerHTML = '<span class="btn-spinner"></span> <span>Connecting...</span>';
+    const originalBtnContent = els.joinBtn ? els.joinBtn.innerHTML : 'Start / Join Call';
+    if (els.joinBtn) {
+      els.joinBtn.disabled = true;
+      els.joinBtn.innerHTML = '<span class="btn-spinner"></span> <span>Connecting...</span>';
+    }
 
     function resetBtn() {
-      els.joinBtn.disabled = false;
-      els.joinBtn.innerHTML = originalBtnContent;
+      if (els.joinBtn) {
+        els.joinBtn.disabled = false;
+        els.joinBtn.innerHTML = originalBtnContent;
+      }
     }
 
-    // Ensure WebSocket is open; reconnect if asleep
-    if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
-      console.log('[WS] Reconnecting socket before joining...');
-      connectSignaling();
-      let waitCount = 0;
-      while ((!state.ws || state.ws.readyState !== WebSocket.OPEN) && waitCount < 30) {
-        await new Promise(r => setTimeout(r, 100));
-        waitCount++;
-      }
+    try {
+      // Ensure WebSocket is open; reconnect if asleep
       if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        console.log('[WS] Reconnecting socket before joining...');
+        connectSignaling();
+        let waitCount = 0;
+        while ((!state.ws || state.ws.readyState !== WebSocket.OPEN) && waitCount < 30) {
+          await new Promise(r => setTimeout(r, 100));
+          waitCount++;
+        }
+        if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+          resetBtn();
+          showJoinError('Connecting to server... Please tap Join again.');
+          return;
+        }
+      }
+
+      // Request camera/mic
+      const mediaReady = await startLocalMedia();
+      if (!mediaReady) {
         resetBtn();
-        showJoinError('Connecting to server... Please tap Join again.');
         return;
       }
-    }
 
-    // Request camera/mic
-    const mediaReady = await startLocalMedia();
-    if (!mediaReady) {
+      // Send join message
+      sendSignaling('join', {
+        code: cleanCode,
+        name: name
+      });
+
+      // Safety timeout: reset button after 6 seconds if no response
+      setTimeout(() => {
+        if (!state.activeCode) resetBtn();
+      }, 6000);
+    } catch (err) {
+      console.error('[MyFam] Join error:', err);
       resetBtn();
-      return;
+      showJoinError('Join error: ' + (err.message || err));
     }
-
-    // Send join message
-    sendSignaling('join', {
-      code: cleanCode,
-      name: name
-    });
-
-    // Safety timeout: reset button after 6 seconds if no response
-    setTimeout(() => {
-      if (!state.activeCode) resetBtn();
-    }, 6000);
   }
 
   function cleanupPeer() {
@@ -1403,15 +1409,19 @@
       });
     }
 
-    els.joinBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      handleJoinSubmit();
-    });
+    if (els.joinBtn) {
+      els.joinBtn.onclick = (e) => {
+        e.preventDefault();
+        handleJoinSubmit();
+      };
+    }
 
-    els.joinForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      handleJoinSubmit();
-    });
+    if (els.joinForm) {
+      els.joinForm.onsubmit = (e) => {
+        e.preventDefault();
+        handleJoinSubmit();
+      };
+    }
 
     els.copyInviteBtn.addEventListener('click', () => {
       const code = formatCode(state.activeCode);
@@ -1488,5 +1498,9 @@
     });
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
