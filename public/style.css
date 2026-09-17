@@ -534,6 +534,23 @@ input[type="text"]:focus,
   color: #58a6ff;
 }
 
+.hud-action-btn {
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  background-color: #238636;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: auto;
+  transition: background-color 0.2s;
+}
+
+.hud-action-btn:hover {
+  background-color: #2ea043;
+}
+
 .btn-icon-tiny {
   background: none;
   border: none;

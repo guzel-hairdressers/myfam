@@ -4,10 +4,10 @@
  * 100% EPHEMERAL & PRIVATE:
  * - No user registration, no server accounts, no profiles.
  * - Simple 6-digit call codes (e.g. 742-918).
- * - Local-only family contacts (saved on your phone/browser only, never sent to server).
- * - Custom names / nicknames can be edited by you anytime.
- * - In-browser cryptographic verification via SHA-256.
- * - Dual-Engine: WebRTC with Opus FEC + Stealth WebSocket Relay on TLS port 443.
+ * - Robust WebRTC with ICE candidate queuing (prevents "Connecting..." hang).
+ * - Multi-STUN fallback (Google, Cloudflare, Mozilla, Metered).
+ * - 6-second auto-fallback to Stealth WebSocket Tunnel on TLS port 443.
+ * - Local-only family contacts (saved on your phone/browser only).
  */
 
 (() => {
@@ -18,8 +18,8 @@
       width: { ideal: 160, max: 240 },
       height: { ideal: 120, max: 180 },
       frameRate: { ideal: 10, max: 12 },
-      videoBitrate: 45000,    // 45 kbps
-      audioBitrate: 16000,    // 16 kbps Opus
+      videoBitrate: 45000,
+      audioBitrate: 16000,
       stealthFps: 5,
       stealthQuality: 0.3
     },
@@ -28,8 +28,8 @@
       width: { ideal: 320, max: 480 },
       height: { ideal: 240, max: 360 },
       frameRate: { ideal: 15, max: 15 },
-      videoBitrate: 120000,   // 120 kbps
-      audioBitrate: 20000,    // 20 kbps Opus
+      videoBitrate: 120000,
+      audioBitrate: 20000,
       stealthFps: 8,
       stealthQuality: 0.4
     },
@@ -38,8 +38,8 @@
       width: { ideal: 640, max: 640 },
       height: { ideal: 480, max: 480 },
       frameRate: { ideal: 20, max: 24 },
-      videoBitrate: 350000,   // 350 kbps
-      audioBitrate: 24000,    // 24 kbps Opus
+      videoBitrate: 350000,
+      audioBitrate: 24000,
       stealthFps: 12,
       stealthQuality: 0.55
     },
@@ -48,8 +48,8 @@
       width: { ideal: 1280, max: 1280 },
       height: { ideal: 720, max: 720 },
       frameRate: { ideal: 30, max: 30 },
-      videoBitrate: 800000,   // 800 kbps
-      audioBitrate: 32000,    // 32 kbps Opus
+      videoBitrate: 800000,
+      audioBitrate: 32000,
       stealthFps: 15,
       stealthQuality: 0.7
     }
@@ -61,10 +61,10 @@
     clientId: null,
     activeCode: null,
     userName: '',
-    callMode: 'audio-video', // 'audio-video' | 'audio-only'
+    callMode: 'audio-video',
     currentPreset: 'low',
     forceStealth: false,
-    facingMode: 'user', // 'user' | 'environment'
+    facingMode: 'user',
     
     localStream: null,
     remoteStream: null,
@@ -88,20 +88,23 @@
     lastStatsTime: 0,
     pingInterval: null,
     statsInterval: null,
-    currentPing: null
+    currentPing: null,
+
+    // WebRTC connection timeout monitor
+    iceTimeoutTimer: null
   };
+
+  // ICE Candidate Queue to prevent race conditions
+  let pendingCandidates = [];
 
   // DOM Elements
   const els = {
-    // Header
     serverStatusBadge: document.getElementById('serverStatusBadge'),
     serverStatusText: document.getElementById('serverStatusText'),
     
-    // Views
     lobbyView: document.getElementById('lobbyView'),
     callView: document.getElementById('callView'),
     
-    // Join Form
     joinForm: document.getElementById('joinForm'),
     codeInput: document.getElementById('codeInput'),
     newCodeBtn: document.getElementById('newCodeBtn'),
@@ -112,7 +115,6 @@
     joinBtn: document.getElementById('joinBtn'),
     joinError: document.getElementById('joinError'),
     
-    // Local Contacts
     contactsList: document.getElementById('contactsList'),
     addContactBtn: document.getElementById('addContactBtn'),
     contactModal: document.getElementById('contactModal'),
@@ -122,14 +124,13 @@
     closeContactModalBtn: document.getElementById('closeContactModalBtn'),
     saveContactBtn: document.getElementById('saveContactBtn'),
     
-    // Call HUD
     hudCodeDisplay: document.getElementById('hudCodeDisplay'),
     hudPing: document.getElementById('hudPing'),
     hudTransport: document.getElementById('hudTransport'),
     hudBitrate: document.getElementById('hudBitrate'),
     copyInviteBtn: document.getElementById('copyInviteBtn'),
+    quickStealthBtn: document.getElementById('quickStealthBtn'),
     
-    // Media elements
     remoteVideo: document.getElementById('remoteVideo'),
     localVideo: document.getElementById('localVideo'),
     remoteCanvas: document.getElementById('remoteCanvas'),
@@ -143,7 +144,6 @@
     remoteSpeakingWave: document.getElementById('remoteSpeakingWave'),
     localSpeakingWave: document.getElementById('localSpeakingWave'),
     
-    // Controls
     toggleMicBtn: document.getElementById('toggleMicBtn'),
     toggleCamBtn: document.getElementById('toggleCamBtn'),
     flipCamBtn: document.getElementById('flipCamBtn'),
@@ -151,7 +151,6 @@
     openSettingsBtn: document.getElementById('openSettingsBtn'),
     hangupBtn: document.getElementById('hangupBtn'),
     
-    // Settings Modal
     settingsModal: document.getElementById('settingsModal'),
     closeSettingsBtn: document.getElementById('closeSettingsBtn'),
     applySettingsBtn: document.getElementById('applySettingsBtn'),
@@ -174,7 +173,6 @@
     renderContactsList();
   }
 
-  // --- Code Formatting (XXX-XXX) ---
   function formatCode(raw) {
     const cleaned = (raw || '').replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
     if (cleaned.length > 3) {
@@ -184,22 +182,8 @@
   }
 
   function generateRandomCode() {
-    // 6 digit clean numerical code (e.g. 492-817)
     const num = Math.floor(100000 + Math.random() * 900000).toString();
     return `${num.slice(0, 3)}-${num.slice(3, 6)}`;
-  }
-
-  // Cryptographic SHA-256 hash for verification without server storage
-  async function computeSecurityHash(code) {
-    try {
-      const clean = code.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-      const msgBuffer = new TextEncoder().encode(`${clean}::myfam::v1`);
-      const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-      const hashArray = Array.from(new Uint8Array(hashBuffer));
-      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 16);
-    } catch (e) {
-      return '';
-    }
   }
 
   function setupURLParams() {
@@ -239,7 +223,7 @@
     setTimeout(() => els.toast.classList.add('hidden'), 2800);
   }
 
-  // --- Local Contacts Management (Private to this browser only) ---
+  // --- Local Contacts Management ---
   function getLocalContacts() {
     try {
       return JSON.parse(localStorage.getItem('myfam_local_contacts') || '[]');
@@ -329,7 +313,6 @@
       els.contactsList.appendChild(item);
     });
 
-    // Attach list action listeners
     els.contactsList.querySelectorAll('.btn-dial').forEach(btn => {
       btn.addEventListener('click', () => {
         els.codeInput.value = btn.dataset.code;
@@ -475,6 +458,11 @@
         updateRemotePeerDisplay();
         showToast(`${state.peerName} joined the call`);
 
+        // Pre-create PeerConnection so we are ready to receive offer & candidates
+        if (!state.peerConnection) {
+          createPeerConnection();
+        }
+
         if (state.forceStealth) {
           activateStealthMode();
         }
@@ -526,7 +514,6 @@
     }
   }
 
-  // Check if current user has assigned a custom contact name to this code
   function resolvePeerDisplayName(serverGivenName, code) {
     const contactName = getContactNameForCode(code);
     if (contactName) return contactName;
@@ -540,9 +527,12 @@
 
     const config = {
       iceServers: state.iceServers.length > 0 ? state.iceServers : [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun.cloudflare.com:3478' },
         { urls: 'stun:stun.services.mozilla.com:3478' },
-        { urls: 'stun:stun.nextcloud.com:443' }
+        { urls: 'stun:stun.nextcloud.com:443' },
+        { urls: 'stun:stun.relay.metered.ca:80' }
       ],
       iceCandidatePoolSize: 2,
       bundlePolicy: 'max-bundle'
@@ -551,13 +541,16 @@
     const pc = new RTCPeerConnection(config);
     state.peerConnection = pc;
 
+    // Attach local media tracks
     if (state.localStream) {
       state.localStream.getTracks().forEach(track => {
         pc.addTrack(track, state.localStream);
       });
     }
 
+    // Handle remote tracks
     pc.ontrack = (event) => {
+      console.log('[WebRTC] Remote track received:', event.track.kind);
       if (event.streams && event.streams[0]) {
         state.remoteStream = event.streams[0];
         els.remoteVideo.srcObject = state.remoteStream;
@@ -571,10 +564,20 @@
           els.remoteAvatar.classList.remove('hidden');
         }
 
+        // Trigger autoplay safely
+        els.remoteVideo.play().catch(() => {
+          // Retry with temporary mute for mobile browser autoplay policy
+          els.remoteVideo.muted = true;
+          els.remoteVideo.play().then(() => {
+            setTimeout(() => els.remoteVideo.muted = false, 150);
+          }).catch(() => {});
+        });
+
         setupAudioVisualizer(state.remoteStream, els.remoteSpeakingWave);
       }
     };
 
+    // Trickle ICE candidates
     pc.onicecandidate = (event) => {
       if (event.candidate && state.peerId) {
         sendSignaling('candidate', {
@@ -584,23 +587,47 @@
       }
     };
 
+    // Monitor ICE Connection State
     pc.oniceconnectionstatechange = () => {
       const iceState = pc.iceConnectionState;
-      console.log('[WebRTC] ICE Connection:', iceState);
+      console.log('[WebRTC] ICE Connection State:', iceState);
 
       if (iceState === 'connected' || iceState === 'completed') {
+        clearIceTimeout();
         updateRouteBadge('WebRTC Direct', 'connected');
         applyBitrateConstraints();
       } else if (iceState === 'checking') {
         updateRouteBadge('Connecting...', 'checking');
+        startIceTimeout();
       } else if (iceState === 'failed' || iceState === 'disconnected') {
-        console.warn('[WebRTC] Connection failed. Activating Stealth Relay fallback...');
-        updateRouteBadge('WebRTC Failed', 'relay');
+        clearIceTimeout();
+        console.warn('[WebRTC] ICE failed. Switching to Stealth Relay (TLS 443)...');
         activateStealthMode();
       }
     };
 
     return pc;
+  }
+
+  // 6-Second Auto-Fallback: If carrier NAT or firewall blocks P2P UDP, auto-switch to port 443 tunnel
+  function startIceTimeout() {
+    clearIceTimeout();
+    state.iceTimeoutTimer = setTimeout(() => {
+      if (!state.peerConnection) return;
+      const iceState = state.peerConnection.iceConnectionState;
+      if (iceState === 'checking' || iceState === 'new') {
+        console.warn('[WebRTC] Connection taking longer than 6s. Carrier NAT likely blocking UDP. Auto-activating Stealth Relay 443...');
+        showToast('NAT/Firewall detected. Routing media over TLS port 443...');
+        activateStealthMode();
+      }
+    }, 6000);
+  }
+
+  function clearIceTimeout() {
+    if (state.iceTimeoutTimer) {
+      clearTimeout(state.iceTimeoutTimer);
+      state.iceTimeoutTimer = null;
+    }
   }
 
   async function initiateCall(targetId) {
@@ -611,15 +638,23 @@
         offerToReceiveVideo: state.callMode === 'audio-video'
       });
 
-      const optimizedSdp = optimizeSdp(offer.sdp);
-      await pc.setLocalDescription(new RTCSessionDescription({ type: 'offer', sdp: optimizedSdp }));
+      let finalSdp = offer.sdp;
+      try {
+        finalSdp = optimizeSdp(offer.sdp);
+        await pc.setLocalDescription(new RTCSessionDescription({ type: 'offer', sdp: finalSdp }));
+      } catch (sdpErr) {
+        console.warn('[WebRTC] Munged SDP rejected, using standard SDP:', sdpErr);
+        await pc.setLocalDescription(offer);
+        finalSdp = offer.sdp;
+      }
 
       sendSignaling('offer', {
         targetId,
-        sdp: pc.localDescription.sdp
+        sdp: finalSdp
       });
     } catch (err) {
       console.error('[WebRTC] Error initiating call:', err);
+      activateStealthMode();
     }
   }
 
@@ -627,16 +662,28 @@
     const pc = createPeerConnection();
     try {
       await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: payload.sdp }));
+      
+      // Flush any ICE candidates that arrived before the offer
+      await flushPendingCandidates();
+
       const answer = await pc.createAnswer();
-      const optimizedSdp = optimizeSdp(answer.sdp);
-      await pc.setLocalDescription(new RTCSessionDescription({ type: 'answer', sdp: optimizedSdp }));
+      let finalSdp = answer.sdp;
+      try {
+        finalSdp = optimizeSdp(answer.sdp);
+        await pc.setLocalDescription(new RTCSessionDescription({ type: 'answer', sdp: finalSdp }));
+      } catch (sdpErr) {
+        console.warn('[WebRTC] Munged Answer rejected, using standard SDP:', sdpErr);
+        await pc.setLocalDescription(answer);
+        finalSdp = answer.sdp;
+      }
 
       sendSignaling('answer', {
         targetId: payload.senderId,
-        sdp: pc.localDescription.sdp
+        sdp: finalSdp
       });
     } catch (err) {
       console.error('[WebRTC] Error answering call:', err);
+      activateStealthMode();
     }
   }
 
@@ -644,40 +691,55 @@
     if (!state.peerConnection) return;
     try {
       await state.peerConnection.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: payload.sdp }));
+      // Flush candidates that arrived before the answer
+      await flushPendingCandidates();
     } catch (err) {
       console.error('[WebRTC] Error setting answer:', err);
     }
   }
 
+  // Handle incoming ICE candidate with queueing
   async function handleRemoteCandidate(payload) {
-    if (!state.peerConnection || !payload.candidate) return;
+    if (!payload.candidate) return;
+    const cand = new RTCIceCandidate(payload.candidate);
+
+    if (!state.peerConnection || !state.peerConnection.remoteDescription) {
+      // Queue candidate until remote description is set
+      pendingCandidates.push(cand);
+      return;
+    }
+
     try {
-      await state.peerConnection.addIceCandidate(new RTCIceCandidate(payload.candidate));
+      await state.peerConnection.addIceCandidate(cand);
     } catch (err) {
-      console.error('[WebRTC] Error adding ICE candidate:', err);
+      console.warn('[WebRTC] Error adding ICE candidate:', err);
     }
   }
 
-  // Opus In-Band FEC and Clamped Bitrate
+  async function flushPendingCandidates() {
+    if (!state.peerConnection || !state.peerConnection.remoteDescription) return;
+    while (pendingCandidates.length > 0) {
+      const cand = pendingCandidates.shift();
+      try {
+        await state.peerConnection.addIceCandidate(cand);
+      } catch (e) {
+        console.warn('[WebRTC] Error adding queued candidate:', e);
+      }
+    }
+  }
+
+  // Opus In-Band FEC
   function optimizeSdp(sdp) {
     const preset = PRESETS[state.currentPreset] || PRESETS.low;
-    let modified = sdp;
+    let lines = sdp.split('\r\n');
 
-    const opusParams = `useinbandfec=1;maxaveragebitrate=${preset.audioBitrate};stereo=0;cbr=1;maxptime=60`;
-    modified = modified.replace(/a=fmtp:(\d+) minptime=\d+;useinbandfec=\d+/gi, `a=fmtp:$1 ${opusParams}`);
-    modified = modified.replace(/a=rtpmap:(\d+) opus\/48000\/2/gi, (match, pt) => {
-      if (!modified.includes(`a=fmtp:${pt}`)) {
-        return `${match}\r\na=fmtp:${pt} ${opusParams}`;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].startsWith('a=fmtp:') && lines[i].includes('minptime=')) {
+        lines[i] = `${lines[i]};useinbandfec=1;maxaveragebitrate=${preset.audioBitrate};stereo=0;cbr=1`;
       }
-      return match;
-    });
-
-    const kbpsLimit = Math.round((preset.videoBitrate + preset.audioBitrate) / 1000);
-    if (!modified.includes('b=AS:')) {
-      modified = modified.replace(/(m=video \d+ [A-Z\/]+ \d+)/gi, `$1\r\nb=AS:${kbpsLimit}\r\nb=TIAS:${preset.videoBitrate}`);
     }
 
-    return modified;
+    return lines.join('\r\n');
   }
 
   async function applyBitrateConstraints() {
@@ -709,8 +771,9 @@
   function activateStealthMode(notifyPeer = true) {
     if (state.isStealthActive) return;
     state.isStealthActive = true;
+    clearIceTimeout();
     updateRouteBadge('Stealth WSS 443', 'stealth');
-    showToast('Stealth Mode active: Routing over TLS 443');
+    showToast('Stealth Tunnel active: Streaming via TLS port 443');
 
     if (notifyPeer && state.peerId) {
       sendSignaling('stealth-toggle', { targetId: state.peerId, enabled: true });
@@ -944,7 +1007,7 @@
     } catch (err) {
       console.error('[Media] getUserMedia error:', err);
       if (!isAudioOnly) {
-        showToast('Camera blocked or unavailable. Falling back to voice only...');
+        showToast('Camera unavailable. Starting voice only...');
         state.callMode = 'audio-only';
         return startLocalMedia();
       }
@@ -1165,6 +1228,7 @@
     els.callView.classList.remove('active');
     els.lobbyView.classList.add('active');
     stopStatsMonitor();
+    clearIceTimeout();
     renderContactsList();
   }
 
@@ -1195,9 +1259,6 @@
 
     localStorage.setItem('myfam_myname', name);
 
-    // Compute cryptographic SHA-256 hash
-    const clientHash = await computeSecurityHash(cleanCode);
-
     // Request camera/mic
     const mediaReady = await startLocalMedia();
     if (!mediaReady) return;
@@ -1205,16 +1266,17 @@
     // Send join message
     sendSignaling('join', {
       code: cleanCode,
-      name: name,
-      clientHash
+      name: name
     });
   }
 
   function cleanupPeer() {
+    clearIceTimeout();
     cleanupPeerConnection();
     deactivateStealthMode();
     state.peerId = null;
     state.peerName = '';
+    pendingCandidates = [];
     updateRemotePeerDisplay();
     els.remoteVideo.srcObject = null;
     els.remoteVideo.classList.add('hidden');
@@ -1222,6 +1284,7 @@
   }
 
   function cleanupPeerConnection() {
+    clearIceTimeout();
     if (state.peerConnection) {
       state.peerConnection.ontrack = null;
       state.peerConnection.onicecandidate = null;
@@ -1241,7 +1304,6 @@
 
   // --- Event Listeners Setup ---
   function setupEventListeners() {
-    // Auto-format code as user types (XXX-XXX)
     els.codeInput.addEventListener('input', (e) => {
       const start = e.target.selectionStart;
       const formatted = formatCode(e.target.value);
@@ -1249,12 +1311,10 @@
       e.target.setSelectionRange(start, start);
     });
 
-    // Generate New Code
     els.newCodeBtn.addEventListener('click', () => {
       els.codeInput.value = generateRandomCode();
     });
 
-    // Call Mode Selector
     els.segmentBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         els.segmentBtns.forEach(b => b.classList.remove('active'));
@@ -1263,7 +1323,6 @@
       });
     });
 
-    // Preset Selector
     els.presetSelect.addEventListener('change', (e) => {
       state.currentPreset = e.target.value;
       els.modalPresetSelect.value = e.target.value;
@@ -1278,19 +1337,24 @@
       applyBitrateConstraints();
     });
 
-    // Stealth Modal Toggle
     els.modalStealthToggle.addEventListener('change', (e) => {
       if (e.target.checked) activateStealthMode();
       else deactivateStealthMode();
     });
 
-    // Form Submit
+    // One-tap instant bypass button on the HUD
+    if (els.quickStealthBtn) {
+      els.quickStealthBtn.addEventListener('click', () => {
+        if (!state.isStealthActive) activateStealthMode();
+        else deactivateStealthMode();
+      });
+    }
+
     els.joinForm.addEventListener('submit', (e) => {
       e.preventDefault();
       handleJoinSubmit();
     });
 
-    // Copy Invite Link or Code
     els.copyInviteBtn.addEventListener('click', () => {
       const code = formatCode(state.activeCode);
       const url = `${window.location.origin}${window.location.pathname}#${code.replace('-', '')}`;
@@ -1303,14 +1367,12 @@
       }
     });
 
-    // In-Call Rename Remote Participant Button
     els.renameRemoteBtn.addEventListener('click', () => {
       if (!state.activeCode) return;
       const currentName = state.peerName || '';
       openContactModal('Rename Contact in Your Phone', currentName, formatCode(state.activeCode));
     });
 
-    // Contacts Modal Buttons
     els.addContactBtn.addEventListener('click', () => {
       openContactModal('Save Contact to Phone', '', els.codeInput.value || generateRandomCode());
     });
@@ -1338,21 +1400,18 @@
       addOrUpdateContact(name, code);
       els.contactModal.classList.add('hidden');
 
-      // If currently in call with this code, update name display immediately
       if (state.activeCode && formatCode(code) === formatCode(state.activeCode)) {
         state.peerName = name;
         updateRemotePeerDisplay();
       }
     });
 
-    // In-Call Toolbar
     els.toggleMicBtn.addEventListener('click', toggleMicrophone);
     els.toggleCamBtn.addEventListener('click', toggleCamera);
     els.flipCamBtn.addEventListener('click', flipCamera);
     els.shareScreenBtn.addEventListener('click', toggleScreenShare);
     els.hangupBtn.addEventListener('click', leaveCall);
 
-    // Settings Modal
     els.openSettingsBtn.addEventListener('click', () => {
       els.modalStealthToggle.checked = state.isStealthActive;
       els.settingsModal.classList.remove('hidden');
