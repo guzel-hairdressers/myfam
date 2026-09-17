@@ -6,7 +6,7 @@
   <title>MyFam - Private Lightweight Voice & Video</title>
   <meta name="description" content="Barebones lightweight video and voice calling for family across borders. No VPN, no accounts, no profiles.">
   <meta name="theme-color" content="#0d1117">
-  <link rel="stylesheet" href="style.css?v=2.0.0">
+  <link rel="stylesheet" href="style.css?v=2.1.0">
 </head>
 <body>
   <div id="app">
@@ -57,23 +57,15 @@
                 <input type="text" id="nameInput" placeholder="e.g. Alex, Mom, Dad" maxlength="24">
               </div>
 
-              <!-- Mode Selection -->
-              <div class="form-group">
-                <label>Call Mode</label>
-                <div class="segmented-control">
-                  <button type="button" class="segment-btn active" data-mode="audio-video">Video + Voice</button>
-                  <button type="button" class="segment-btn" data-mode="audio-only">Voice Only (16 kbps)</button>
-                </div>
-              </div>
-
               <!-- Bandwidth Preset -->
               <div class="form-group">
-                <label for="presetSelect">Compression & Quality</label>
+                <label for="presetSelect">Quality & Bandwidth</label>
                 <select id="presetSelect" class="select-control">
-                  <option value="potato">Ultra-Low (~50 kbps video / 16 kbps audio - 2G/3G)</option>
-                  <option value="low" selected>Low Bandwidth (~120 kbps - Recommended)</option>
+                  <option value="auto" selected>Auto Adaptive (Adjusts to network speed)</option>
+                  <option value="potato">Ultra-Low / Potato (~45 kbps - Poor cellular)</option>
+                  <option value="low">Low Bandwidth (~120 kbps)</option>
                   <option value="balanced">Balanced (~350 kbps)</option>
-                  <option value="hd">High Quality (~800 kbps - Fast WiFi)</option>
+                  <option value="hd">High Definition (~750 kbps - Fast WiFi)</option>
                 </select>
               </div>
 
@@ -290,10 +282,11 @@
           <div class="form-group">
             <label for="modalPresetSelect">Compression / Quality Preset</label>
             <select id="modalPresetSelect" class="select-control">
-              <option value="potato">Ultra-Low (~50 kbps video / 16 kbps audio)</option>
+              <option value="auto" selected>Auto Adaptive (Adjusts to network speed)</option>
+              <option value="potato">Ultra-Low (~45 kbps - Poor cellular)</option>
               <option value="low">Low (~120 kbps video)</option>
               <option value="balanced">Balanced (~350 kbps video)</option>
-              <option value="hd">High Definition (~800 kbps video)</option>
+              <option value="hd">High Definition (~750 kbps video)</option>
             </select>
           </div>
 
@@ -340,6 +333,6 @@
     <div id="toast" class="toast hidden"></div>
   </div>
 
-  <script src="app.js?v=2.0.0"></script>
+  <script src="app.js?v=2.1.0"></script>
 </body>
 </html>

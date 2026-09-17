@@ -15,9 +15,9 @@
   const PRESETS = {
     potato: {
       label: 'Ultra-Low (Potato)',
-      width: { ideal: 160, max: 240 },
-      height: { ideal: 120, max: 180 },
-      frameRate: { ideal: 10, max: 12 },
+      width: { ideal: 160 },
+      height: { ideal: 120 },
+      frameRate: 10,
       videoBitrate: 45000,
       audioBitrate: 16000,
       stealthFps: 5,
@@ -25,9 +25,9 @@
     },
     low: {
       label: 'Low Bandwidth',
-      width: { ideal: 320, max: 480 },
-      height: { ideal: 240, max: 360 },
-      frameRate: { ideal: 15, max: 15 },
+      width: { ideal: 320 },
+      height: { ideal: 240 },
+      frameRate: 15,
       videoBitrate: 120000,
       audioBitrate: 20000,
       stealthFps: 8,
@@ -35,9 +35,9 @@
     },
     balanced: {
       label: 'Balanced',
-      width: { ideal: 640, max: 640 },
-      height: { ideal: 480, max: 480 },
-      frameRate: { ideal: 20, max: 24 },
+      width: { ideal: 640 },
+      height: { ideal: 480 },
+      frameRate: 20,
       videoBitrate: 350000,
       audioBitrate: 24000,
       stealthFps: 12,
@@ -45,15 +45,24 @@
     },
     hd: {
       label: 'High Definition',
-      width: { ideal: 1280, max: 1280 },
-      height: { ideal: 720, max: 720 },
-      frameRate: { ideal: 30, max: 30 },
-      videoBitrate: 800000,
+      width: { ideal: 1280 },
+      height: { ideal: 720 },
+      frameRate: 30,
+      videoBitrate: 750000,
       audioBitrate: 32000,
       stealthFps: 15,
       stealthQuality: 0.7
     }
   };
+
+  const QUALITY_TIERS = ['potato', 'low', 'balanced', 'hd'];
+
+  function getEffectivePreset() {
+    if (state.currentPreset === 'auto') {
+      return PRESETS[state.activeTier] || PRESETS.low;
+    }
+    return PRESETS[state.currentPreset] || PRESETS.low;
+  }
 
   // State
   const state = {
@@ -61,8 +70,9 @@
     clientId: null,
     activeCode: null,
     userName: '',
-    callMode: 'audio-video',
-    currentPreset: 'low',
+    currentPreset: 'auto',
+    activeTier: 'low',
+    goodNetworkCycles: 0,
     forceStealth: false,
     facingMode: 'user',
     
@@ -86,6 +96,8 @@
     // Diagnostics
     lastBytesReceived: 0,
     lastStatsTime: 0,
+    lastPacketsLost: 0,
+    lastPacketsTotal: 0,
     pingInterval: null,
     statsInterval: null,
     currentPing: null,
@@ -109,7 +121,6 @@
     els.codeInput = document.getElementById('codeInput');
     els.newCodeBtn = document.getElementById('newCodeBtn');
     els.nameInput = document.getElementById('nameInput');
-    els.segmentBtns = document.querySelectorAll('.segment-btn');
     els.presetSelect = document.getElementById('presetSelect');
     els.forceStealthCheckbox = document.getElementById('forceStealthModeCheckbox');
     els.joinBtn = document.getElementById('joinBtn');
@@ -202,7 +213,7 @@
     if (savedName) els.nameInput.value = savedName;
 
     const savedPreset = localStorage.getItem('myfam_preset');
-    if (savedPreset && PRESETS[savedPreset]) {
+    if (savedPreset && (PRESETS[savedPreset] || savedPreset === 'auto')) {
       state.currentPreset = savedPreset;
       els.presetSelect.value = savedPreset;
       els.modalPresetSelect.value = savedPreset;
@@ -494,6 +505,15 @@
         break;
       }
 
+      case 'camera-toggle': {
+        const remoteHasCam = payload.enabled;
+        if (!state.isStealthActive) {
+          els.remoteVideo.classList.toggle('hidden', !remoteHasCam);
+          els.remoteAvatar.classList.toggle('hidden', remoteHasCam);
+        }
+        break;
+      }
+
       case 'peer-left': {
         showToast(`${state.peerName || 'Participant'} left`);
         cleanupPeer();
@@ -558,6 +578,21 @@
         } else {
           els.remoteVideo.classList.add('hidden');
           els.remoteAvatar.classList.remove('hidden');
+        }
+
+        if (videoTrack) {
+          videoTrack.onmute = () => {
+            if (!state.isStealthActive) {
+              els.remoteVideo.classList.add('hidden');
+              els.remoteAvatar.classList.remove('hidden');
+            }
+          };
+          videoTrack.onunmute = () => {
+            if (!state.isStealthActive) {
+              els.remoteVideo.classList.remove('hidden');
+              els.remoteAvatar.classList.add('hidden');
+            }
+          };
         }
 
         // Trigger autoplay safely
@@ -631,7 +666,7 @@
     try {
       const offer = await pc.createOffer({
         offerToReceiveAudio: true,
-        offerToReceiveVideo: state.callMode === 'audio-video'
+        offerToReceiveVideo: true
       });
 
       let finalSdp = offer.sdp;
@@ -740,7 +775,7 @@
 
   async function applyBitrateConstraints() {
     if (!state.peerConnection) return;
-    const preset = PRESETS[state.currentPreset] || PRESETS.low;
+    const preset = getEffectivePreset();
 
     try {
       const senders = state.peerConnection.getSenders();
@@ -750,8 +785,16 @@
         if (!params.encodings || params.encodings.length === 0) params.encodings = [{}];
 
         if (sender.track.kind === 'video') {
-          params.encodings[0].maxBitrate = preset.videoBitrate;
-          params.encodings[0].maxFramerate = preset.frameRate.max;
+          if (state.isVideoOff) {
+            params.encodings[0].active = false;
+            params.encodings[0].maxBitrate = 0;
+          } else {
+            params.encodings[0].active = true;
+            params.encodings[0].maxBitrate = preset.videoBitrate;
+            if (typeof preset.frameRate === 'number') {
+              params.encodings[0].maxFramerate = preset.frameRate;
+            }
+          }
           await sender.setParameters(params);
         } else if (sender.track.kind === 'audio') {
           params.encodings[0].maxBitrate = preset.audioBitrate;
@@ -779,7 +822,7 @@
     els.remoteCanvas.classList.remove('hidden');
 
     startStealthAudioStream();
-    if (state.callMode === 'audio-video' && !state.isVideoOff) {
+    if (!state.isVideoOff) {
       startStealthVideoStream();
     }
   }
@@ -840,7 +883,7 @@
     stopStealthVideoStream();
     if (!state.localStream || state.isVideoOff) return;
 
-    const preset = PRESETS[state.currentPreset] || PRESETS.low;
+    const preset = getEffectivePreset();
     const intervalMs = Math.round(1000 / preset.stealthFps);
 
     const canvas = document.createElement('canvas');
@@ -972,34 +1015,32 @@
       return false;
     }
 
-    const preset = PRESETS[state.currentPreset] || PRESETS.low;
-    const isAudioOnly = state.callMode === 'audio-only';
+    const preset = getEffectivePreset();
 
     // Tier 1: Try requested video & audio with mobile-safe ideal constraints
     let stream = null;
-    if (!isAudioOnly) {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: { facingMode: state.facingMode, width: { ideal: preset.width.ideal }, height: { ideal: preset.height.ideal } }
+      });
+    } catch (e1) {
+      console.warn('[Media] Tier 1 camera failed, trying simple video:', e1);
       try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-          video: { facingMode: state.facingMode, width: { ideal: preset.width.ideal }, height: { ideal: preset.height.ideal } }
-        });
-      } catch (e1) {
-        console.warn('[Media] Tier 1 camera failed, trying simple video:', e1);
-        try {
-          // Tier 2: Simplest video constraints
-          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        } catch (e2) {
-          console.warn('[Media] Simple video failed, falling back to audio only:', e2);
-          showToast('Camera not accessible. Joining voice-only...');
-          state.callMode = 'audio-only';
-        }
+        // Tier 2: Simplest video constraints
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      } catch (e2) {
+        console.warn('[Media] Simple video failed, falling back to audio only:', e2);
+        showToast('Camera not accessible. Voice only mode.');
+        state.isVideoOff = true;
       }
     }
 
-    // Tier 3: Audio only if video failed or requested
+    // Tier 3: Audio only if video failed
     if (!stream) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        state.isVideoOff = true;
       } catch (err) {
         console.error('[Media] Audio getUserMedia error:', err);
         showJoinError('Microphone permission required. Please allow microphone in browser settings.');
@@ -1010,15 +1051,21 @@
     state.localStream = stream;
     els.localVideo.srcObject = state.localStream;
 
-    const hasVideo = stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].enabled;
-    if (!hasVideo || state.callMode === 'audio-only') {
+    const hasVideo = stream.getVideoTracks().length > 0;
+    if (!hasVideo || state.isVideoOff) {
+      state.isVideoOff = true;
       els.localVideo.classList.add('hidden');
       els.localAvatar.classList.remove('hidden');
       els.toggleCamBtn.classList.add('active-off');
+      els.toggleCamBtn.querySelector('.icon-cam-on').classList.add('hidden');
+      els.toggleCamBtn.querySelector('.icon-cam-off').classList.remove('hidden');
     } else {
+      state.isVideoOff = false;
       els.localVideo.classList.remove('hidden');
       els.localAvatar.classList.add('hidden');
       els.toggleCamBtn.classList.remove('active-off');
+      els.toggleCamBtn.querySelector('.icon-cam-on').classList.remove('hidden');
+      els.toggleCamBtn.querySelector('.icon-cam-off').classList.add('hidden');
     }
 
     setupAudioVisualizer(state.localStream, els.localSpeakingWave);
@@ -1050,9 +1097,12 @@
   }
 
   function toggleCamera() {
-    if (!state.localStream || state.callMode === 'audio-only') return;
+    if (!state.localStream) return;
     const videoTrack = state.localStream.getVideoTracks()[0];
-    if (!videoTrack) return;
+    if (!videoTrack) {
+      showToast('No camera found on this device');
+      return;
+    }
 
     state.isVideoOff = !state.isVideoOff;
     videoTrack.enabled = !state.isVideoOff;
@@ -1064,17 +1114,26 @@
     els.localVideo.classList.toggle('hidden', state.isVideoOff);
     els.localAvatar.classList.toggle('hidden', !state.isVideoOff);
 
+    // Enforce voice-only bandwidth saving or restore video
+    applyBitrateConstraints();
+
+    if (state.peerId) {
+      sendSignaling('camera-toggle', { targetId: state.peerId, enabled: !state.isVideoOff });
+    }
+
     if (state.isStealthActive) {
       if (state.isVideoOff) stopStealthVideoStream();
       else startStealthVideoStream();
     }
+
+    showToast(state.isVideoOff ? 'Camera off (Voice Only)' : 'Camera turned on');
   }
 
   async function flipCamera() {
-    if (state.callMode === 'audio-only' || !state.localStream) return;
+    if (state.isVideoOff || !state.localStream) return;
 
     state.facingMode = state.facingMode === 'user' ? 'environment' : 'user';
-    const preset = PRESETS[state.currentPreset] || PRESETS.low;
+    const preset = getEffectivePreset();
 
     try {
       const newStream = await navigator.mediaDevices.getUserMedia({
@@ -1148,9 +1207,13 @@
     } catch (e) {}
   }
 
-  // --- Diagnostics Monitor ---
+  // --- Diagnostics Monitor & Dynamic Auto-Adaptive Quality ---
   function startStatsMonitor() {
     stopStatsMonitor();
+    state.lastPacketsLost = 0;
+    state.lastPacketsTotal = 0;
+    state.goodNetworkCycles = 0;
+
     state.statsInterval = setInterval(async () => {
       if (!state.peerConnection) {
         if (state.isStealthActive) {
@@ -1193,12 +1256,56 @@
         state.lastBytesReceived = bytesRecv;
         state.lastStatsTime = now;
 
+        let deltaLossPct = 0;
         if (packetsTotal > 0) {
           const lossRate = ((packetsLost / packetsTotal) * 100).toFixed(1);
           els.statLoss.textContent = `${lossRate}%`;
+
+          const deltaLost = Math.max(0, packetsLost - (state.lastPacketsLost || 0));
+          const deltaTotal = Math.max(0, packetsTotal - (state.lastPacketsTotal || 0));
+          if (deltaTotal > 0) {
+            deltaLossPct = (deltaLost / deltaTotal) * 100;
+          }
+          state.lastPacketsLost = packetsLost;
+          state.lastPacketsTotal = packetsTotal;
         }
 
         els.statProtocol.textContent = activeTransport;
+
+        // Auto-Adaptive Quality Engine:
+        // Automatically steps quality up/down in real-time based on jitter, loss, and latency
+        if (state.currentPreset === 'auto' && !state.isVideoOff) {
+          const currentTierIdx = QUALITY_TIERS.indexOf(state.activeTier);
+
+          // Downscale trigger: packet loss > 5% or ping > 380ms
+          const isStruggling = deltaLossPct > 5 || (state.currentPing !== null && state.currentPing > 380);
+          // Upscale trigger: clean network (loss < 1% or no loss) and latency < 160ms
+          const isHealthy = deltaLossPct < 1 && (state.currentPing === null || state.currentPing < 160);
+
+          if (isStruggling) {
+            state.goodNetworkCycles = 0;
+            if (currentTierIdx > 0) {
+              state.activeTier = QUALITY_TIERS[currentTierIdx - 1];
+              console.log(`[Adaptive Quality] Network congestion detected (loss: ${deltaLossPct.toFixed(1)}%, ping: ${state.currentPing}ms). Stepping down to: ${state.activeTier}`);
+              applyBitrateConstraints();
+              showToast(`Network slow: Adapted quality to ${PRESETS[state.activeTier].label}`);
+            }
+          } else if (isHealthy) {
+            state.goodNetworkCycles = (state.goodNetworkCycles || 0) + 1;
+            // Require 5 consecutive clean cycles (10 seconds) before upgrading
+            if (state.goodNetworkCycles >= 5) {
+              state.goodNetworkCycles = 0;
+              if (currentTierIdx < QUALITY_TIERS.length - 1) {
+                state.activeTier = QUALITY_TIERS[currentTierIdx + 1];
+                console.log(`[Adaptive Quality] Sustained clean network. Stepping up to: ${state.activeTier}`);
+                applyBitrateConstraints();
+                showToast(`Network stable: Upgraded quality to ${PRESETS[state.activeTier].label}`);
+              }
+            }
+          } else {
+            state.goodNetworkCycles = 0;
+          }
+        }
       } catch (e) {}
     }, 2000);
   }
@@ -1364,22 +1471,40 @@
   // --- Event Listeners Setup ---
   function setupEventListeners() {
     els.codeInput.addEventListener('input', (e) => {
-      const start = e.target.selectionStart;
-      const formatted = formatCode(e.target.value);
-      e.target.value = formatted;
-      e.target.setSelectionRange(start, start);
+      const input = e.target;
+      const prevVal = input.value;
+      const prevCursor = input.selectionStart || 0;
+
+      // Count alphanumeric characters before the cursor
+      const charsBeforeCursor = prevVal.slice(0, prevCursor).replace(/[^a-zA-Z0-9]/g, '').length;
+
+      const cleaned = prevVal.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+      const formatted = cleaned.length > 3 ? `${cleaned.slice(0, 3)}-${cleaned.slice(3)}` : cleaned;
+      input.value = formatted;
+
+      let newCursor = charsBeforeCursor;
+      if (charsBeforeCursor > 3) {
+        newCursor = charsBeforeCursor + 1;
+      }
+      newCursor = Math.min(newCursor, formatted.length);
+      input.setSelectionRange(newCursor, newCursor);
+    });
+
+    els.codeInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace') {
+        const input = e.target;
+        if (input.selectionStart === 4 && input.selectionEnd === 4 && input.value.charAt(3) === '-') {
+          e.preventDefault();
+          const cleaned = input.value.replace(/[^a-zA-Z0-9]/g, '');
+          const updated = cleaned.slice(0, 2) + cleaned.slice(3);
+          input.value = updated.length > 3 ? `${updated.slice(0, 3)}-${updated.slice(3)}` : updated;
+          input.setSelectionRange(2, 2);
+        }
+      }
     });
 
     els.newCodeBtn.addEventListener('click', () => {
       els.codeInput.value = generateRandomCode();
-    });
-
-    els.segmentBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        els.segmentBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        state.callMode = btn.dataset.mode;
-      });
     });
 
     els.presetSelect.addEventListener('change', (e) => {

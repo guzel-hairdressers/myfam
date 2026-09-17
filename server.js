@@ -214,8 +214,8 @@ wss.on('connection', (ws) => {
       return;
     }
 
-    // Direct WebRTC signaling exchange (offer, answer, candidate, stealth-toggle)
-    if (['offer', 'answer', 'candidate', 'stealth-toggle'].includes(type)) {
+    // Direct WebRTC signaling exchange (offer, answer, candidate, stealth-toggle, camera-toggle)
+    if (['offer', 'answer', 'candidate', 'stealth-toggle', 'camera-toggle'].includes(type)) {
       const { targetId } = payload || {};
       if (!ws.roomCode || !targetId) return;
 
