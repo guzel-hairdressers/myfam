@@ -11,6 +11,12 @@
  */
 
 (() => {
+  // Automatically ensure HTTPS on mobile for camera & mic access
+  if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    window.location.href = window.location.href.replace('http:', 'https:');
+    return;
+  }
+
   // Quality & Bandwidth Presets
   const PRESETS = {
     potato: {
@@ -971,49 +977,62 @@
 
   // --- Media Stream Management ---
   async function startLocalMedia() {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      showJoinError('Media access requires HTTPS or browser permission. Please check your browser address has https://');
+      return false;
+    }
+
     const preset = PRESETS[state.currentPreset] || PRESETS.low;
     const isAudioOnly = state.callMode === 'audio-only';
 
-    const constraints = {
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1
-      },
-      video: isAudioOnly ? false : {
-        width: preset.width,
-        height: preset.height,
-        frameRate: preset.frameRate,
-        facingMode: state.facingMode
+    // Tier 1: Try requested video & audio with mobile-safe ideal constraints
+    let stream = null;
+    if (!isAudioOnly) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          video: { facingMode: state.facingMode, width: { ideal: preset.width.ideal }, height: { ideal: preset.height.ideal } }
+        });
+      } catch (e1) {
+        console.warn('[Media] Tier 1 camera failed, trying simple video:', e1);
+        try {
+          // Tier 2: Simplest video constraints
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        } catch (e2) {
+          console.warn('[Media] Simple video failed, falling back to audio only:', e2);
+          showToast('Camera not accessible. Joining voice-only...');
+          state.callMode = 'audio-only';
+        }
       }
-    };
-
-    try {
-      state.localStream = await navigator.mediaDevices.getUserMedia(constraints);
-      els.localVideo.srcObject = state.localStream;
-
-      if (isAudioOnly) {
-        els.localVideo.classList.add('hidden');
-        els.localAvatar.classList.remove('hidden');
-        els.toggleCamBtn.classList.add('active-off');
-      } else {
-        els.localVideo.classList.remove('hidden');
-        els.localAvatar.classList.add('hidden');
-      }
-
-      setupAudioVisualizer(state.localStream, els.localSpeakingWave);
-      return true;
-    } catch (err) {
-      console.error('[Media] getUserMedia error:', err);
-      if (!isAudioOnly) {
-        showToast('Camera unavailable. Starting voice only...');
-        state.callMode = 'audio-only';
-        return startLocalMedia();
-      }
-      showJoinError('Microphone permission required for call.');
-      return false;
     }
+
+    // Tier 3: Audio only if video failed or requested
+    if (!stream) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch (err) {
+        console.error('[Media] Audio getUserMedia error:', err);
+        showJoinError('Microphone permission required. Please allow microphone in browser settings.');
+        return false;
+      }
+    }
+
+    state.localStream = stream;
+    els.localVideo.srcObject = state.localStream;
+
+    const hasVideo = stream.getVideoTracks().length > 0 && stream.getVideoTracks()[0].enabled;
+    if (!hasVideo || state.callMode === 'audio-only') {
+      els.localVideo.classList.add('hidden');
+      els.localAvatar.classList.remove('hidden');
+      els.toggleCamBtn.classList.add('active-off');
+    } else {
+      els.localVideo.classList.remove('hidden');
+      els.localAvatar.classList.add('hidden');
+      els.toggleCamBtn.classList.remove('active-off');
+    }
+
+    setupAudioVisualizer(state.localStream, els.localSpeakingWave);
+    return true;
   }
 
   function stopLocalMedia() {
@@ -1244,6 +1263,7 @@
   // --- Join & Leave Handlers ---
   async function handleJoinSubmit() {
     hideJoinError();
+
     const rawCode = els.codeInput.value;
     const formatted = formatCode(rawCode);
     const cleanCode = formatted.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -1256,18 +1276,51 @@
     const name = els.nameInput.value.trim() || 'Family Member';
     state.userName = name;
     state.forceStealth = els.forceStealthCheckbox.checked;
-
     localStorage.setItem('myfam_myname', name);
+
+    // Visual button feedback
+    const originalBtnContent = els.joinBtn.innerHTML;
+    els.joinBtn.disabled = true;
+    els.joinBtn.innerHTML = '<span class="btn-spinner"></span> <span>Connecting...</span>';
+
+    function resetBtn() {
+      els.joinBtn.disabled = false;
+      els.joinBtn.innerHTML = originalBtnContent;
+    }
+
+    // Ensure WebSocket is open; reconnect if asleep
+    if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+      console.log('[WS] Reconnecting socket before joining...');
+      connectSignaling();
+      let waitCount = 0;
+      while ((!state.ws || state.ws.readyState !== WebSocket.OPEN) && waitCount < 30) {
+        await new Promise(r => setTimeout(r, 100));
+        waitCount++;
+      }
+      if (!state.ws || state.ws.readyState !== WebSocket.OPEN) {
+        resetBtn();
+        showJoinError('Connecting to server... Please tap Join again.');
+        return;
+      }
+    }
 
     // Request camera/mic
     const mediaReady = await startLocalMedia();
-    if (!mediaReady) return;
+    if (!mediaReady) {
+      resetBtn();
+      return;
+    }
 
     // Send join message
     sendSignaling('join', {
       code: cleanCode,
       name: name
     });
+
+    // Safety timeout: reset button after 6 seconds if no response
+    setTimeout(() => {
+      if (!state.activeCode) resetBtn();
+    }, 6000);
   }
 
   function cleanupPeer() {
@@ -1349,6 +1402,11 @@
         else deactivateStealthMode();
       });
     }
+
+    els.joinBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleJoinSubmit();
+    });
 
     els.joinForm.addEventListener('submit', (e) => {
       e.preventDefault();
