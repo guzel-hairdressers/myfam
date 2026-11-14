@@ -63,7 +63,7 @@
       autoLabel: 'Auto'
     },
     ru: {
-      heroTitle: 'Присоединиться',
+      heroTitle: 'Присоединяйся',
       heroSubtitle: 'Поделитесь кодом или выберите группу.',
       callCode: 'Код звонка',
       yourName: 'Ваше имя',
