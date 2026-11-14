@@ -583,6 +583,40 @@ html, body {
   background-color: rgba(16, 185, 129, 0.24);
 }
 
+.btn-dial.is-live {
+  background-color: rgba(16, 185, 129, 0.22);
+  border-color: rgba(16, 185, 129, 0.55);
+  color: #6ee7b7;
+}
+
+.btn-primary.btn-join-active {
+  background-color: #10b981;
+  color: #052e1c;
+}
+
+.group-presence {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+}
+
+.presence-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: var(--radius-full);
+  background-color: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #a7f3d0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1;
+}
+
 .btn-icon {
   background: none;
   border: none;

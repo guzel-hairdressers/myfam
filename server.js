@@ -161,6 +161,22 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // Lightweight presence lookup for caller's saved groups / typed code
+    if (type === 'check-rooms') {
+      const codes = Array.isArray(payload?.codes) ? payload.codes.slice(0, 20) : [];
+      const result = {};
+      for (const raw of codes) {
+        const clean = typeof raw === 'string' ? raw.replace(/-/g, '').toLowerCase() : '';
+        if (!/^[a-z0-9]{6}$/.test(clean)) continue;
+        const room = rooms.get(clean);
+        result[clean] = room
+          ? Array.from(room.peers.values()).map((p) => ({ name: p.name }))
+          : [];
+      }
+      ws.send(JSON.stringify({ type: 'rooms-status', payload: { rooms: result } }));
+      return;
+    }
+
     // Join room with code
     if (type === 'join') {
       const { code, name } = payload || {};

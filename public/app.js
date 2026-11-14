@@ -69,6 +69,8 @@
     ws: null,
     clientId: null,
     activeCode: null,
+    roomPresence: new Map(),
+    presenceTimer: null,
     userName: '',
     currentPreset: 'auto',
     activeTier: 'low',
@@ -302,6 +304,59 @@
     return match ? match.name : null;
   }
 
+  const GUEST_EMOJIS = ['🦊', '🐼', '🐨', '🐸', '🐙', '🦋', '🐥', '🐢'];
+
+  function getPeerBadge(name) {
+    const trimmed = (name || '').trim();
+    if (!trimmed || /^Guest-\d+$/i.test(trimmed) || trimmed === 'Family Member') {
+      let hash = 0;
+      for (let i = 0; i < trimmed.length; i++) hash = (hash * 31 + trimmed.charCodeAt(i)) >>> 0;
+      return GUEST_EMOJIS[hash % GUEST_EMOJIS.length];
+    }
+    const parts = trimmed.split(/\s+/);
+    return (parts.length > 1 ? parts[0][0] + parts[1][0] : trimmed.slice(0, 2)).toUpperCase();
+  }
+
+  function normalizeCleanCode(raw) {
+    return String(raw || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  }
+
+  function updateJoinButtonLabel() {
+    if (!els.joinBtn || state.joining || state.activeCode) return;
+    const clean = normalizeCleanCode(els.codeInput ? els.codeInput.value : '');
+    const activePeers = /^[a-z0-9]{6}$/.test(clean) ? (state.roomPresence.get(clean) || []) : [];
+    const isLive = activePeers.length > 0;
+    const labelSpan = els.joinBtn.querySelector('span');
+    if (labelSpan) labelSpan.textContent = isLive ? t('joinCall') : t('startCall');
+    els.joinBtn.classList.toggle('btn-join-active', isLive);
+  }
+
+  function requestLobbyPresence() {
+    if (state.activeCode || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+    const codes = new Set();
+    getLocalContacts().forEach(c => {
+      const clean = normalizeCleanCode(c.code);
+      if (/^[a-z0-9]{6}$/.test(clean)) codes.add(clean);
+    });
+    const typed = normalizeCleanCode(els.codeInput ? els.codeInput.value : '');
+    if (/^[a-z0-9]{6}$/.test(typed)) codes.add(typed);
+    if (codes.size === 0) return;
+    sendSignaling('check-rooms', { codes: Array.from(codes) });
+  }
+
+  function startPresencePolling() {
+    stopPresencePolling();
+    requestLobbyPresence();
+    state.presenceTimer = setInterval(requestLobbyPresence, 4000);
+  }
+
+  function stopPresencePolling() {
+    if (state.presenceTimer) {
+      clearInterval(state.presenceTimer);
+      state.presenceTimer = null;
+    }
+  }
+
   function renderContactsList() {
     const contacts = getLocalContacts();
     els.contactsList.innerHTML = '';
@@ -317,24 +372,31 @@
 
     contacts.forEach(contact => {
       const initial = (contact.name || '?').trim().charAt(0).toUpperCase();
+      const cleanCode = normalizeCleanCode(contact.code);
+      const activePeers = state.roomPresence.get(cleanCode) || [];
+      const isLive = activePeers.length > 0;
+      const presenceHtml = isLive
+        ? `<span class="group-presence">${activePeers.slice(0, 5).map(p => `<span class="presence-chip" title="${escapeHtml(p.name)}">${escapeHtml(getPeerBadge(p.name))}</span>`).join('')}</span>`
+        : '';
+      const dialLabel = isLive ? t('joinShort') : 'Call';
       const item = document.createElement('div');
       item.className = 'contact-item';
       item.innerHTML = `
         <div class="contact-left">
           <div class="contact-avatar">${escapeHtml(initial)}</div>
           <div class="contact-info">
-            <span class="contact-name">${escapeHtml(contact.name)}</span>
+            <span class="contact-name">${escapeHtml(contact.name)}${presenceHtml}</span>
             <span class="contact-code">${escapeHtml(contact.code)}</span>
           </div>
         </div>
         <div class="contact-actions">
-          <button type="button" class="btn-dial" data-code="${escapeHtml(contact.code)}" title="Call ${escapeHtml(contact.name)}">
+          <button type="button" class="btn-dial ${isLive ? 'is-live' : ''}" data-code="${escapeHtml(contact.code)}" title="${escapeHtml(dialLabel)} ${escapeHtml(contact.name)}">
             <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
               <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
             </svg>
-            <span>Call</span>
+            <span>${escapeHtml(dialLabel)}</span>
           </button>
-          <button type="button" class="btn-icon btn-rename" data-code="${escapeHtml(contact.code)}" data-name="${escapeHtml(contact.name)}" title="Rename in Contacts">
+          <button type="button" class="btn-icon btn-rename" data-code="${escapeHtml(contact.code)}" data-name="${escapeHtml(contact.name)}" title="Rename group">
             <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 20h9"></path>
               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
@@ -402,6 +464,7 @@
       if (state.ws !== socket) return;
       updateServerStatus('connected', t('online'));
       startPingHeartbeat();
+      startPresencePolling();
       if (state.activeCode) sendSignaling('join', { code: state.activeCode, name: state.userName });
     };
 
@@ -409,6 +472,7 @@
       if (state.ws !== socket) return;
       updateServerStatus('error', t('offline'));
       stopPingHeartbeat();
+      stopPresencePolling();
       if (state.activeCode) {
         cleanupPeer();
         updateRouteBadge('Reconnecting...', 'checking');
@@ -515,6 +579,16 @@
           els.hudPing.textContent = `${rtt} ms`;
           els.statPing.textContent = `${rtt} ms`;
         }
+        break;
+      }
+
+      case 'rooms-status': {
+        const roomsObj = payload?.rooms || {};
+        for (const [code, peers] of Object.entries(roomsObj)) {
+          state.roomPresence.set(code, Array.isArray(peers) ? peers : []);
+        }
+        renderContactsList();
+        updateJoinButtonLabel();
         break;
       }
 
@@ -1758,6 +1832,8 @@
       }
       newCursor = Math.min(newCursor, formatted.length);
       input.setSelectionRange(newCursor, newCursor);
+      updateJoinButtonLabel();
+      requestLobbyPresence();
     });
 
     els.codeInput.addEventListener('keydown', (e) => {
@@ -1775,6 +1851,8 @@
 
     els.newCodeBtn.addEventListener('click', () => {
       els.codeInput.value = generateRandomCode();
+      updateJoinButtonLabel();
+      requestLobbyPresence();
     });
 
     els.presetSelect.addEventListener('change', (e) => {
@@ -1790,6 +1868,8 @@
         if (state.ws?.readyState === WebSocket.OPEN) updateServerStatus('connected', t('online'));
         else updateServerStatus('error', t('offline'));
         setStealthUiState(state.isStealthActive || (state.peers.size === 0 && state.forceStealth));
+        renderContactsList();
+        updateJoinButtonLabel();
       });
     }
 
