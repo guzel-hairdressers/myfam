@@ -124,6 +124,7 @@
     els.callView = document.getElementById('callView');
     els.joinForm = document.getElementById('joinForm');
     els.codeInput = document.getElementById('codeInput');
+    els.lobbyCopyBtn = document.getElementById('lobbyCopyBtn');
     els.newCodeBtn = document.getElementById('newCodeBtn');
     els.nameInput = document.getElementById('nameInput');
     els.rememberNameCheckbox = document.getElementById('rememberNameCheckbox');
@@ -1781,16 +1782,33 @@
       };
     }
 
-    els.copyInviteBtn.addEventListener('click', () => {
-      const code = formatCode(state.activeCode);
-      const url = `${window.location.origin}${window.location.pathname}#${code.replace('-', '')}`;
+    function copyInviteLink(rawCode) {
+      const code = formatCode(rawCode);
+      const clean = code.replace(/[^a-zA-Z0-9]/g, '');
+      if (clean.length !== 6) {
+        showToast('Enter a 6-character code first.');
+        return;
+      }
+      const url = `${window.location.origin}${window.location.pathname}#${clean}`;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(() => {
-          showToast(`Link copied for code: ${code}`);
+          showToast(`Invite link copied (${code})`);
+        }).catch(() => {
+          showToast(`Code: ${code}`);
         });
       } else {
         showToast(`Code: ${code}`);
       }
+    }
+
+    if (els.lobbyCopyBtn) {
+      els.lobbyCopyBtn.addEventListener('click', () => {
+        copyInviteLink(els.codeInput.value);
+      });
+    }
+
+    els.copyInviteBtn.addEventListener('click', () => {
+      copyInviteLink(state.activeCode);
     });
 
     els.addContactBtn.addEventListener('click', () => {

@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="style.css?v=2.3.2">
+  <link rel="stylesheet" href="style.css?v=2.3.3">
 </head>
 <body>
   <div id="app">
@@ -51,13 +51,21 @@
                 <label for="codeInput">Call code</label>
                 <div class="code-field">
                   <input type="text" id="codeInput" class="code-input" placeholder="742-918" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="characters" inputmode="numeric" required>
-                  <button type="button" id="newCodeBtn" class="code-refresh-btn" title="Generate new code" aria-label="Generate new code">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <polyline points="23 4 23 10 17 10"></polyline>
-                      <polyline points="1 20 1 14 7 14"></polyline>
-                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
-                    </svg>
-                  </button>
+                  <div class="code-actions">
+                    <button type="button" id="lobbyCopyBtn" class="code-action-btn" title="Copy invite link" aria-label="Copy invite link">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      </svg>
+                    </button>
+                    <button type="button" id="newCodeBtn" class="code-action-btn" title="Generate new code" aria-label="Generate new code">
+                      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -321,6 +329,6 @@
     <div id="toast" class="toast hidden"></div>
   </div>
 
-  <script src="app.js?v=2.3.3"></script>
+  <script src="app.js?v=2.3.4"></script>
 </body>
 </html>
