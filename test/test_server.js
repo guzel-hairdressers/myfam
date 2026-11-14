@@ -6,8 +6,9 @@ const http = require('http');
 const { WebSocket } = require('ws');
 
 // Import server
-process.env.PORT = '3456';
-require('../server.js');
+const { createApp } = require('../server.js');
+const { server } = createApp();
+server.listen(3456, '127.0.0.1');
 
 async function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));

@@ -5,12 +5,12 @@
  * - NO database, zero persistent storage.
  * - Multi-STUN fallback (Google, Cloudflare, Mozilla, Metered).
  * - Immediate in-memory cleanup when rooms empty.
- * - Memory footprint < 30MB RAM.
  */
 
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
 const { WebSocketServer, WebSocket } = require('ws');
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
@@ -52,47 +52,48 @@ const MIME_TYPES = {
   '.webp': 'image/webp'
 };
 
+function createApp() {
 // Static file server
 const server = http.createServer((req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'no-referrer');
 
+  res.setHeader('Cache-Control', 'no-store');
+  let pathname;
+  try {
+    pathname = decodeURIComponent(req.url.split('?')[0]);
+  } catch {
+    res.writeHead(400);
+    return res.end('Bad request');
+  }
+  if (!['GET', 'HEAD'].includes(req.method)) {
+    res.writeHead(405, { Allow: 'GET, HEAD' });
+    return res.end('Method not allowed');
+  }
+
   // Cloud host healthcheck
-  if (req.url === '/health') {
+  if (pathname === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ status: 'ok', activeRooms: rooms.size }));
   }
 
   // ICE config endpoint
-  if (req.url === '/api/ice-config') {
+  if (pathname === '/api/ice-config') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ iceServers: DEFAULT_ICE_SERVERS }));
   }
 
-  let safeUrl = req.url.split('?')[0];
-  if (safeUrl === '/' || safeUrl === '') {
-    safeUrl = '/index.html';
-  }
-
-  const filePath = path.join(PUBLIC_DIR, path.normalize(safeUrl));
-  if (!filePath.startsWith(PUBLIC_DIR)) {
+  const filePath = path.resolve(PUBLIC_DIR, '.' + (pathname === '/' ? '/index.html' : pathname));
+  if (!filePath.startsWith(PUBLIC_DIR + path.sep)) {
     res.writeHead(403);
     return res.end('Forbidden');
   }
 
   fs.stat(filePath, (err, stats) => {
     if (err || !stats.isFile()) {
-      const indexPath = path.join(PUBLIC_DIR, 'index.html');
-      fs.readFile(indexPath, (indexErr, content) => {
-        if (indexErr) {
-          res.writeHead(404, { 'Content-Type': 'text/plain' });
-          return res.end('404 Not Found');
-        }
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-        res.end(content);
-      });
-      return;
+      res.writeHead(404, { 'Content-Type': 'text/plain' });
+      return res.end('404 Not Found');
     }
 
     const ext = path.extname(filePath).toLowerCase();
@@ -104,16 +105,19 @@ const server = http.createServer((req, res) => {
     res.setHeader('Expires', '0');
 
     res.writeHead(200, { 'Content-Type': contentType });
-    fs.createReadStream(filePath).pipe(res);
+    if (req.method === 'HEAD') return res.end();
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
   });
 });
 
 // Ephemeral room management
 const rooms = new Map();
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, maxPayload: 256 * 1024, perMessageDeflate: false });
 
 function generateClientId() {
-  return Math.random().toString(36).substring(2, 9);
+  return randomUUID();
 }
 
 wss.on('connection', (ws) => {
@@ -128,13 +132,13 @@ wss.on('connection', (ws) => {
   ws.on('message', (data, isBinary) => {
     // Binary streaming for Stealth WebSocket fallback
     if (isBinary) {
-      if (!ws.roomCode) return;
+      if (!ws.roomCode || data.length < 2 || ![1, 2].includes(data[0])) return;
       const room = rooms.get(ws.roomCode);
       if (!room) return;
 
       for (const [peerId, peer] of room.peers.entries()) {
         if (peerId !== ws.id && peer.ws.readyState === WebSocket.OPEN) {
-          peer.ws.send(data, { binary: true });
+          if (peer.ws.bufferedAmount < 64 * 1024) peer.ws.send(data, { binary: true });
         }
       }
       return;
@@ -147,7 +151,9 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    if (!message || typeof message !== 'object' || Array.isArray(message)) return;
     const { type, payload } = message;
+    if (payload !== undefined && (!payload || typeof payload !== 'object' || Array.isArray(payload))) return;
 
     // Latency RTT measurement
     if (type === 'ping') {
@@ -158,13 +164,21 @@ wss.on('connection', (ws) => {
     // Join room with code
     if (type === 'join') {
       const { code, name } = payload || {};
-      const cleanCode = (code || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+      const cleanCode = typeof code === 'string' ? code.replace(/-/g, '').toLowerCase() : '';
+      if (typeof name !== 'undefined' && typeof name !== 'string') return;
 
-      if (!cleanCode || cleanCode.length < 4) {
+      if (!/^[a-z0-9]{6}$/.test(cleanCode)) {
         ws.send(JSON.stringify({ type: 'error', payload: { message: 'Enter a valid call code.' } }));
         return;
       }
 
+      if (ws.roomCode === cleanCode) return;
+      const now = Date.now();
+      if (!ws.joinWindow || now - ws.joinWindow > 60000) { ws.joinWindow = now; ws.joinAttempts = 0; }
+      if (++ws.joinAttempts > 30) {
+        ws.send(JSON.stringify({ type: 'error', payload: { message: 'Too many join attempts. Try again in a minute.' } }));
+        return;
+      }
       let room = rooms.get(cleanCode);
 
       if (!room) {
@@ -172,11 +186,12 @@ wss.on('connection', (ws) => {
         rooms.set(cleanCode, room);
       }
 
-      if (room.peers.size >= 8) {
-        ws.send(JSON.stringify({ type: 'error', payload: { message: 'Call room is full (max 8 members).' } }));
+      if (room.peers.size >= 5) {
+        ws.send(JSON.stringify({ type: 'error', payload: { message: 'Call room is full (max 5 family members).' } }));
         return;
       }
 
+      leaveRoom(ws);
       ws.roomCode = cleanCode;
       ws.name = name ? name.trim().slice(0, 24) : 'Family Member';
 
@@ -189,7 +204,7 @@ wss.on('connection', (ws) => {
       // Add self to room
       room.peers.set(ws.id, { ws, name: ws.name });
 
-      console.log(`[Room ${cleanCode}] ${ws.name} (${ws.id}) joined. Total peers: ${room.peers.size}`);
+
 
       // Confirm join to self
       ws.send(JSON.stringify({
@@ -249,10 +264,10 @@ wss.on('connection', (ws) => {
 function leaveRoom(ws) {
   if (!ws.roomCode) return;
   const room = rooms.get(ws.roomCode);
-  if (!room) return;
+  if (!room) { ws.roomCode = null; return; }
 
   room.peers.delete(ws.id);
-  console.log(`[Room ${ws.roomCode}] Peer ${ws.id} left. Remaining: ${room.peers.size}`);
+
 
   for (const [peerId, peer] of room.peers.entries()) {
     if (peer.ws.readyState === WebSocket.OPEN) {
@@ -281,10 +296,14 @@ const interval = setInterval(() => {
 
 wss.on('close', () => clearInterval(interval));
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`====================================================`);
-  console.log(`  MyFam Ephemeral Call Server Running`);
-  console.log(`  Port: http://0.0.0.0:${PORT}`);
-  console.log(`  ICE Servers: ${DEFAULT_ICE_SERVERS.length} available`);
-  console.log(`====================================================`);
-});
+return { server, wss, rooms };
+}
+
+if (require.main === module) {
+  const { server } = createApp();
+  server.listen(PORT, process.env.HOST || '0.0.0.0', () => {
+    console.log(`MyFam listening on port ${server.address().port}`);
+  });
+}
+
+module.exports = { createApp };
