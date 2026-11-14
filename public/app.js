@@ -565,7 +565,7 @@
     playJoinChime();
     if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
       try {
-        const n = new Notification('MyFam', {
+        const n = new Notification('2fam', {
           body: `${peerName} joined the call`,
           icon: '/icon.svg',
           tag: 'myfam-join'

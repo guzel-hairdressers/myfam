@@ -1,6 +1,6 @@
 {
-  "name": "MyFam",
-  "short_name": "MyFam",
+  "name": "2fam",
+  "short_name": "2fam",
   "description": "Private, lightweight family voice and video calls.",
   "start_url": "/",
   "display": "standalone",

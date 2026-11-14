@@ -42,7 +42,7 @@ async function testStaticFile() {
       let data = '';
       res.on('data', (chunk) => data += chunk);
       res.on('end', () => {
-        if (res.statusCode === 200 && data.includes('MyFam')) {
+        if (res.statusCode === 200 && data.includes('2fam')) {
           console.log('✓ Static index.html served OK');
           resolve(true);
         } else {
