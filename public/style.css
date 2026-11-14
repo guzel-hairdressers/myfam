@@ -198,30 +198,30 @@ html, body {
 }
 
 .card-intro {
-  margin-bottom: 22px;
+  margin-bottom: 24px;
 }
 
 .card-intro h1 {
-  font-size: 1.45rem;
-  font-weight: 600;
-  letter-spacing: -0.025em;
-  margin-bottom: 4px;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  margin-bottom: 6px;
 }
 
 .card-intro p {
-  font-size: 0.88rem;
+  font-size: 1rem;
   color: var(--text-secondary);
 }
 
 .field-group {
   display: flex;
   flex-direction: column;
-  gap: 7px;
-  margin-bottom: 16px;
+  gap: 8px;
+  margin-bottom: 18px;
 }
 
 .field-group label {
-  font-size: 0.78rem;
+  font-size: 0.92rem;
   font-weight: 500;
   color: var(--text-secondary);
 }
@@ -240,13 +240,13 @@ html, body {
 
 .code-input {
   width: 100%;
-  padding: 14px 48px 14px 16px;
+  padding: 16px 86px 16px 16px;
   background-color: var(--surface-elevated);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-md);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-weight: 600;
   letter-spacing: 0.14em;
   text-align: center;
@@ -294,13 +294,13 @@ html, body {
 .text-input,
 .select-control {
   width: 100%;
-  padding: 11px 14px;
+  padding: 13px 15px;
   background-color: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--text);
   font-family: inherit;
-  font-size: 0.94rem;
+  font-size: 1.05rem;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
@@ -361,9 +361,9 @@ html, body {
 .remember-row {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   margin-top: 8px;
-  font-size: 0.8rem;
+  font-size: 0.9rem;
   font-weight: 400;
   color: var(--text-muted);
   cursor: pointer;
@@ -430,7 +430,9 @@ html, body {
   justify-content: center;
   gap: 9px;
   width: 100%;
-  padding: 13px 20px;
+  padding: 15px 20px;
+  font-size: 1.08rem;
+  font-weight: 600;
   background-color: var(--accent);
   border: none;
   border-radius: var(--radius-full);
@@ -487,7 +489,7 @@ html, body {
 }
 
 .contacts-header h2 {
-  font-size: 0.88rem;
+  font-size: 1.05rem;
   font-weight: 600;
   color: var(--text-secondary);
   letter-spacing: 0.01em;

@@ -3,7 +3,7 @@
 
   const TRANSLATIONS = {
     en: {
-      heroTitle: 'Private calls, anywhere.',
+      heroTitle: 'Join',
       heroSubtitle: 'Share a code or tap a group.',
       callCode: 'Call code',
       yourName: 'Your name',
@@ -63,7 +63,7 @@
       autoLabel: 'Auto'
     },
     ru: {
-      heroTitle: 'Приватные звонки везде.',
+      heroTitle: 'Присоединиться',
       heroSubtitle: 'Поделитесь кодом или выберите группу.',
       callCode: 'Код звонка',
       yourName: 'Ваше имя',
@@ -123,7 +123,7 @@
       autoLabel: 'Авто'
     },
     es: {
-      heroTitle: 'Llamadas privadas, donde sea.',
+      heroTitle: 'Unirse',
       heroSubtitle: 'Comparte un código o toca un grupo.',
       callCode: 'Código de llamada',
       yourName: 'Tu nombre',
@@ -183,7 +183,7 @@
       autoLabel: 'Auto'
     },
     fr: {
-      heroTitle: 'Appels privés, partout.',
+      heroTitle: 'Rejoindre',
       heroSubtitle: 'Partagez un code ou touchez un groupe.',
       callCode: "Code d'appel",
       yourName: 'Votre nom',
@@ -243,7 +243,7 @@
       autoLabel: 'Auto'
     },
     de: {
-      heroTitle: 'Private Anrufe, überall.',
+      heroTitle: 'Beitreten',
       heroSubtitle: 'Code teilen oder Gruppe antippen.',
       callCode: 'Anrufcode',
       yourName: 'Dein Name',
@@ -303,7 +303,7 @@
       autoLabel: 'Auto'
     },
     zh: {
-      heroTitle: '随时随地，私密通话。',
+      heroTitle: '加入通话',
       heroSubtitle: '分享通话码或点击群组。',
       callCode: '通话码',
       yourName: '您的名字',
@@ -363,7 +363,7 @@
       autoLabel: '自动'
     },
     tr: {
-      heroTitle: 'Her yerden gizli aramalar.',
+      heroTitle: 'Katıl',
       heroSubtitle: 'Kod paylaşın veya gruba dokunun.',
       callCode: 'Arama kodu',
       yourName: 'Adınız',
