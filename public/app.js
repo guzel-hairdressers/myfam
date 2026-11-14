@@ -71,6 +71,8 @@
     activeCode: null,
     roomPresence: new Map(),
     presenceTimer: null,
+    isChatOpen: false,
+    unreadChat: 0,
     userName: '',
     currentPreset: 'auto',
     activeTier: 'low',
@@ -165,6 +167,13 @@
     els.toggleCamBtn = document.getElementById('toggleCamBtn');
     els.flipCamBtn = document.getElementById('flipCamBtn');
     els.shareScreenBtn = document.getElementById('shareScreenBtn');
+    els.toggleChatBtn = document.getElementById('toggleChatBtn');
+    els.chatUnreadDot = document.getElementById('chatUnreadDot');
+    els.chatDrawer = document.getElementById('chatDrawer');
+    els.closeChatBtn = document.getElementById('closeChatBtn');
+    els.chatMessages = document.getElementById('chatMessages');
+    els.chatForm = document.getElementById('chatForm');
+    els.chatInput = document.getElementById('chatInput');
     els.openSettingsBtn = document.getElementById('openSettingsBtn');
     els.hangupBtn = document.getElementById('hangupBtn');
     els.settingsModal = document.getElementById('settingsModal');
@@ -622,6 +631,17 @@
         }
         renderContactsList();
         updateJoinButtonLabel();
+        break;
+      }
+
+      case 'chat': {
+        if (payload?.text) {
+          appendChatMessage({
+            senderName: payload.senderName || 'Guest',
+            text: payload.text,
+            isSelf: false
+          });
+        }
         break;
       }
 
@@ -1826,7 +1846,56 @@
     updateGridLayout();
   }
 
+  function formatChatText(raw) {
+    const escaped = escapeHtml(raw);
+    return escaped.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  }
+
+  function clearChat() {
+    state.isChatOpen = false;
+    state.unreadChat = 0;
+    if (els.chatDrawer) els.chatDrawer.classList.add('hidden');
+    if (els.chatUnreadDot) els.chatUnreadDot.classList.add('hidden');
+    if (els.toggleChatBtn) els.toggleChatBtn.classList.remove('active');
+    if (els.chatMessages) {
+      els.chatMessages.innerHTML = `<div class="chat-empty">${escapeHtml(t('chatEmpty'))}</div>`;
+    }
+  }
+
+  function appendChatMessage({ senderName, text, isSelf }) {
+    if (!els.chatMessages) return;
+    const empty = els.chatMessages.querySelector('.chat-empty');
+    if (empty) empty.remove();
+
+    const item = document.createElement('div');
+    item.className = `chat-msg ${isSelf ? 'chat-msg-out' : 'chat-msg-in'}`;
+    item.innerHTML = `${isSelf ? '' : `<span class="chat-sender">${escapeHtml(senderName)}</span>`}<span>${formatChatText(text)}</span>`;
+    els.chatMessages.appendChild(item);
+    els.chatMessages.scrollTop = els.chatMessages.scrollHeight;
+
+    if (!isSelf && !state.isChatOpen) {
+      state.unreadChat++;
+      if (els.chatUnreadDot) els.chatUnreadDot.classList.remove('hidden');
+    }
+  }
+
+  function toggleChatDrawer(forceOpen) {
+    const next = typeof forceOpen === 'boolean' ? forceOpen : !state.isChatOpen;
+    state.isChatOpen = next;
+    if (els.chatDrawer) els.chatDrawer.classList.toggle('hidden', !next);
+    if (els.toggleChatBtn) els.toggleChatBtn.classList.toggle('active', next);
+    if (next) {
+      state.unreadChat = 0;
+      if (els.chatUnreadDot) els.chatUnreadDot.classList.add('hidden');
+      if (els.chatMessages && els.chatMessages.children.length === 0) {
+        els.chatMessages.innerHTML = `<div class="chat-empty">${escapeHtml(t('chatEmpty'))}</div>`;
+      }
+      if (els.chatInput) els.chatInput.focus();
+    }
+  }
+
   function leaveCall() {
+    clearChat();
     state.callGeneration++;
     resetJoinButton();
     sendSignaling('leave');
@@ -2025,6 +2094,25 @@
     els.flipCamBtn.addEventListener('click', flipCamera);
     els.shareScreenBtn.addEventListener('click', toggleScreenShare);
     els.hangupBtn.addEventListener('click', leaveCall);
+
+    if (els.toggleChatBtn) {
+      els.toggleChatBtn.addEventListener('click', () => toggleChatDrawer());
+    }
+
+    if (els.closeChatBtn) {
+      els.closeChatBtn.addEventListener('click', () => toggleChatDrawer(false));
+    }
+
+    if (els.chatForm) {
+      els.chatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const text = els.chatInput ? els.chatInput.value.trim() : '';
+        if (!text || !state.activeCode) return;
+        sendSignaling('chat', { text });
+        appendChatMessage({ senderName: state.userName || t('you'), text, isSelf: true });
+        els.chatInput.value = '';
+      });
+    }
 
     els.openSettingsBtn.addEventListener('click', () => {
       els.modalStealthToggle.checked = state.isStealthActive;

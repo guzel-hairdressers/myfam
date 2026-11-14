@@ -245,6 +245,31 @@ wss.on('connection', (ws) => {
       return;
     }
 
+    // Ephemeral in-call chat broadcast (zero persistence)
+    if (type === 'chat') {
+      if (!ws.roomCode) return;
+      const room = rooms.get(ws.roomCode);
+      if (!room) return;
+      const text = typeof payload?.text === 'string' ? payload.text.trim().slice(0, 1000) : '';
+      if (!text) return;
+      const sender = room.peers.get(ws.id);
+      const out = JSON.stringify({
+        type: 'chat',
+        payload: {
+          senderId: ws.id,
+          senderName: sender ? sender.name : 'Family Member',
+          text,
+          ts: Date.now()
+        }
+      });
+      for (const [peerId, peer] of room.peers.entries()) {
+        if (peerId !== ws.id && peer.ws.readyState === WebSocket.OPEN) {
+          peer.ws.send(out);
+        }
+      }
+      return;
+    }
+
     // Direct WebRTC signaling exchange (offer, answer, candidate, stealth-toggle, camera-toggle)
     if (['offer', 'answer', 'candidate', 'stealth-toggle', 'camera-toggle'].includes(type)) {
       const { targetId } = payload || {};
