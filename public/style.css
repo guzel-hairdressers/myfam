@@ -85,6 +85,31 @@ html, body {
   justify-content: center;
 }
 
+.header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lang-select {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 5px 10px;
+  outline: none;
+  cursor: pointer;
+}
+
+.lang-select:hover,
+.lang-select:focus {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;

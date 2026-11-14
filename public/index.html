@@ -12,7 +12,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="apple-touch-icon" href="icon.svg">
-  <link rel="stylesheet" href="style.css?v=2.3.3">
+  <link rel="stylesheet" href="style.css?v=2.3.4">
 </head>
 <body>
   <div id="app">
@@ -26,9 +26,21 @@
         </span>
         <span>MyFam</span>
       </div>
-      <div id="serverStatusBadge" class="status-badge status-connecting">
-        <span class="status-dot"></span>
-        <span id="serverStatusText">Connecting</span>
+      <div class="header-actions">
+        <select id="langSelect" class="lang-select" aria-label="Language">
+          <option value="auto">Auto</option>
+          <option value="en">EN</option>
+          <option value="ru">RU</option>
+          <option value="es">ES</option>
+          <option value="fr">FR</option>
+          <option value="de">DE</option>
+          <option value="zh">ZH</option>
+          <option value="tr">TR</option>
+        </select>
+        <div id="serverStatusBadge" class="status-badge status-connecting">
+          <span class="status-dot"></span>
+          <span id="serverStatusText" data-i18n="connecting">Connecting</span>
+        </div>
       </div>
     </header>
 
@@ -41,24 +53,24 @@
           <!-- Primary Call Card -->
           <div class="card join-card">
             <div class="card-intro">
-              <h1>Private calls, anywhere.</h1>
-              <p>Share a code or tap a contact. No accounts.</p>
+              <h1 data-i18n="heroTitle">Private calls, anywhere.</h1>
+              <p data-i18n="heroSubtitle">Share a code or tap a contact. No accounts.</p>
             </div>
 
             <form id="joinForm">
               <!-- Code Input -->
               <div class="field-group">
-                <label for="codeInput">Call code</label>
+                <label for="codeInput" data-i18n="callCode">Call code</label>
                 <div class="code-field">
                   <input type="text" id="codeInput" class="code-input" placeholder="742-918" maxlength="8" autocomplete="off" autocorrect="off" autocapitalize="characters" inputmode="numeric" required>
                   <div class="code-actions">
-                    <button type="button" id="lobbyCopyBtn" class="code-action-btn" title="Copy invite link" aria-label="Copy invite link">
+                    <button type="button" id="lobbyCopyBtn" class="code-action-btn" title="Copy invite link" data-i18n-title="copyInviteTitle" aria-label="Copy invite link">
                       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
                       </svg>
                     </button>
-                    <button type="button" id="newCodeBtn" class="code-action-btn" title="Generate new code" aria-label="Generate new code">
+                    <button type="button" id="newCodeBtn" class="code-action-btn" title="Generate new code" data-i18n-title="newCodeTitle" aria-label="Generate new code">
                       <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="23 4 23 10 17 10"></polyline>
                         <polyline points="1 20 1 14 7 14"></polyline>
@@ -71,39 +83,39 @@
 
               <!-- Your Name -->
               <div class="field-group">
-                <label for="nameInput">Your name <span class="muted">(optional)</span></label>
-                <input type="text" id="nameInput" class="text-input" placeholder="e.g. Alex, Mom" maxlength="24">
+                <label for="nameInput"><span data-i18n="yourName">Your name</span> <span class="muted" data-i18n="optional">(optional)</span></label>
+                <input type="text" id="nameInput" class="text-input" placeholder="e.g. Alex, Mom" data-i18n-placeholder="namePlaceholder" maxlength="24">
                 <label class="remember-row">
                   <input type="checkbox" id="rememberNameCheckbox" checked>
-                  <span>Remember my name on this device</span>
+                  <span data-i18n="rememberName">Remember my name on this device</span>
                 </label>
               </div>
 
               <!-- Collapsible Network Options (Hidden by default for simplicity) -->
               <details class="advanced-drawer">
                 <summary>
-                  <span>Connection options</span>
+                  <span data-i18n="connectionOptions">Connection options</span>
                   <svg class="chevron" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="6 9 12 15 18 9"></polyline>
                   </svg>
                 </summary>
                 <div class="advanced-body">
                   <div class="field-group">
-                    <label for="presetSelect">Quality</label>
+                    <label for="presetSelect" data-i18n="quality">Quality</label>
                     <select id="presetSelect" class="select-control">
-                      <option value="auto" selected>Auto (Adapts to network)</option>
-                      <option value="potato">Ultra-Low (~45 kbps)</option>
-                      <option value="low">Low (~120 kbps)</option>
-                      <option value="balanced">Balanced (~350 kbps)</option>
-                      <option value="hd">HD (~750 kbps)</option>
+                      <option value="auto" selected data-i18n="qualityAuto">Auto (Adapts to network)</option>
+                      <option value="potato" data-i18n="qualityPotato">Ultra-Low (~45 kbps)</option>
+                      <option value="low" data-i18n="qualityLow">Low (~120 kbps)</option>
+                      <option value="balanced" data-i18n="qualityBalanced">Balanced (~350 kbps)</option>
+                      <option value="hd" data-i18n="qualityHd">HD (~750 kbps)</option>
                     </select>
                   </div>
 
                   <label class="toggle-row">
                     <input type="checkbox" id="forceStealthModeCheckbox">
                     <span class="toggle-copy">
-                      <strong>Stealth Tunnel (TLS 443)</strong>
-                      <small>Use if normal calls are blocked by firewall</small>
+                      <strong data-i18n="stealthTitle">Stealth Tunnel (TLS 443)</strong>
+                      <small data-i18n="stealthDesc">Use if normal calls are blocked by firewall</small>
                     </span>
                   </label>
                 </div>
@@ -115,7 +127,7 @@
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
                   <path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
                 </svg>
-                <span>Start Call</span>
+                <span data-i18n="startCall">Start Call</span>
               </button>
             </form>
           </div>
@@ -123,8 +135,8 @@
           <!-- Saved Contacts -->
           <div class="contacts-section">
             <div class="contacts-header">
-              <h2>Contacts</h2>
-              <button type="button" id="addContactBtn" class="btn-ghost">+ Add</button>
+              <h2 data-i18n="contacts">Contacts</h2>
+              <button type="button" id="addContactBtn" class="btn-ghost" data-i18n="addContact">+ Add</button>
             </div>
             <div id="contactsList" class="contacts-list"></div>
           </div>
@@ -163,7 +175,7 @@
                 <span>...</span>
               </div>
               <div class="remote-name-wrapper">
-                <span class="name-tag">Waiting for family to join...</span>
+                <span class="name-tag" data-i18n="waitingFamily">Waiting for family to join...</span>
               </div>
             </div>
           </div>
@@ -181,7 +193,7 @@
               </div>
             </div>
 
-            <div class="local-name-tag">You</div>
+            <div class="local-name-tag" data-i18n="you">You</div>
           </div>
         </div>
 
@@ -252,22 +264,22 @@
     <div id="contactModal" class="modal-backdrop hidden">
       <div class="modal-card">
         <div class="modal-header">
-          <h3 id="contactModalTitle">Save Contact</h3>
+          <h3 id="contactModalTitle" data-i18n="saveContact">Save Contact</h3>
           <button id="closeContactModalBtn" class="btn-close">&times;</button>
         </div>
         <div class="modal-body">
           <div class="field-group">
-            <label for="contactNameInput">Name</label>
-            <input type="text" id="contactNameInput" class="text-input" placeholder="e.g. Mom, Dad" maxlength="24">
+            <label for="contactNameInput" data-i18n="contactName">Name</label>
+            <input type="text" id="contactNameInput" class="text-input" placeholder="e.g. Mom, Dad" data-i18n-placeholder="contactNamePlaceholder" maxlength="24">
           </div>
           <div class="field-group">
-            <label for="contactCodeInput">Call code</label>
+            <label for="contactCodeInput" data-i18n="callCode">Call code</label>
             <input type="text" id="contactCodeInput" class="text-input mono-input" placeholder="742-918" maxlength="8">
           </div>
-          <p class="text-hint">Saved locally on this device only.</p>
+          <p class="text-hint" data-i18n="savedLocally">Saved locally on this device only.</p>
         </div>
         <div class="modal-footer">
-          <button type="button" id="saveContactBtn" class="btn-primary">Save</button>
+          <button type="button" id="saveContactBtn" class="btn-primary" data-i18n="save">Save</button>
         </div>
       </div>
     </div>
@@ -276,26 +288,26 @@
     <div id="settingsModal" class="modal-backdrop hidden">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>Connection & Quality</h3>
+          <h3 data-i18n="connectionQuality">Connection & Quality</h3>
           <button id="closeSettingsBtn" class="btn-close">&times;</button>
         </div>
         <div class="modal-body">
           <div class="field-group">
-            <label for="modalPresetSelect">Quality</label>
+            <label for="modalPresetSelect" data-i18n="quality">Quality</label>
             <select id="modalPresetSelect" class="select-control">
-              <option value="auto" selected>Auto (Adapts to network)</option>
-              <option value="potato">Ultra-Low (~45 kbps)</option>
-              <option value="low">Low (~120 kbps)</option>
-              <option value="balanced">Balanced (~350 kbps)</option>
-              <option value="hd">HD (~750 kbps)</option>
+              <option value="auto" selected data-i18n="qualityAuto">Auto (Adapts to network)</option>
+              <option value="potato" data-i18n="qualityPotato">Ultra-Low (~45 kbps)</option>
+              <option value="low" data-i18n="qualityLow">Low (~120 kbps)</option>
+              <option value="balanced" data-i18n="qualityBalanced">Balanced (~350 kbps)</option>
+              <option value="hd" data-i18n="qualityHd">HD (~750 kbps)</option>
             </select>
           </div>
 
           <label class="toggle-row">
             <input type="checkbox" id="modalStealthToggle">
             <span class="toggle-copy">
-              <strong>Stealth Tunnel (TLS 443)</strong>
-              <small>Bypass strict firewalls by routing media over HTTPS port 443</small>
+              <strong data-i18n="stealthTitle">Stealth Tunnel (TLS 443)</strong>
+              <small data-i18n="stealthModalDesc">Bypass strict firewalls by routing media over HTTPS port 443</small>
             </span>
           </label>
 
@@ -303,25 +315,25 @@
             <div class="stats-grid">
               <div class="stat-box">
                 <span class="stat-num" id="statPing">--</span>
-                <span class="stat-name">Ping</span>
+                <span class="stat-name" data-i18n="ping">Ping</span>
               </div>
               <div class="stat-box">
                 <span class="stat-num" id="statLoss">0%</span>
-                <span class="stat-name">Loss</span>
+                <span class="stat-name" data-i18n="loss">Loss</span>
               </div>
               <div class="stat-box">
                 <span class="stat-num" id="statBitrate">--</span>
-                <span class="stat-name">Bitrate</span>
+                <span class="stat-name" data-i18n="bitrate">Bitrate</span>
               </div>
               <div class="stat-box">
                 <span class="stat-num" id="statProtocol">--</span>
-                <span class="stat-name">Route</span>
+                <span class="stat-name" data-i18n="route">Route</span>
               </div>
             </div>
           </div>
         </div>
         <div class="modal-footer">
-          <button id="applySettingsBtn" class="btn-primary">Done</button>
+          <button id="applySettingsBtn" class="btn-primary" data-i18n="done">Done</button>
         </div>
       </div>
     </div>
@@ -329,6 +341,7 @@
     <div id="toast" class="toast hidden"></div>
   </div>
 
-  <script src="app.js?v=2.3.5"></script>
+  <script src="i18n.js?v=1.0.0"></script>
+  <script src="app.js?v=2.3.6"></script>
 </body>
 </html>

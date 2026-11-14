@@ -109,6 +109,8 @@
     currentPing: null
   };
 
+  const t = (key, vars) => (window.MyFamI18n ? window.MyFamI18n.t(key, vars) : key);
+
   const storage = {
     getItem(key) { try { return localStorage.getItem(key); } catch { return null; } },
     setItem(key, value) { try { localStorage.setItem(key, value); } catch { showToast('Browser storage unavailable. Changes will not be saved.'); } },
@@ -121,6 +123,7 @@
   function initElements() {
     els.serverStatusBadge = document.getElementById('serverStatusBadge');
     els.serverStatusText = document.getElementById('serverStatusText');
+    els.langSelect = document.getElementById('langSelect');
     els.lobbyView = document.getElementById('lobbyView');
     els.callView = document.getElementById('callView');
     els.joinForm = document.getElementById('joinForm');
@@ -177,6 +180,7 @@
   function init() {
     console.log('[MyFam] Initializing application...');
     initElements();
+    window.MyFamI18n?.applyTranslations();
     setupURLParams();
     setupEventListeners();
     connectSignaling();
@@ -388,7 +392,7 @@
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const wsUrl = `${protocol}//${window.location.host}`;
 
-    updateServerStatus('connecting', 'Connecting...');
+    updateServerStatus('connecting', t('connecting'));
 
     const socket = new WebSocket(wsUrl);
     state.ws = socket;
@@ -396,14 +400,14 @@
 
     state.ws.onopen = () => {
       if (state.ws !== socket) return;
-      updateServerStatus('connected', 'Ready');
+      updateServerStatus('connected', t('online'));
       startPingHeartbeat();
       if (state.activeCode) sendSignaling('join', { code: state.activeCode, name: state.userName });
     };
 
     state.ws.onclose = () => {
       if (state.ws !== socket) return;
-      updateServerStatus('error', 'Disconnected');
+      updateServerStatus('error', t('offline'));
       stopPingHeartbeat();
       if (state.activeCode) {
         cleanupPeer();
@@ -430,6 +434,39 @@
   function updateServerStatus(status, text) {
     els.serverStatusBadge.className = `status-badge status-${status}`;
     els.serverStatusText.textContent = text;
+  }
+
+  function playJoinChime() {
+    prepareAudio().then((ctx) => {
+      const now = ctx.currentTime;
+      [587.33, 880].forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+        gain.gain.setValueAtTime(0.001, now + idx * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.12, now + idx * 0.12 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.12 + 0.25);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(now + idx * 0.12);
+        osc.stop(now + idx * 0.12 + 0.26);
+      });
+    }).catch(() => {});
+  }
+
+  function notifyPeerJoined(peerName) {
+    playJoinChime();
+    if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        const n = new Notification('MyFam', {
+          body: `${peerName} joined the call`,
+          icon: '/icon.svg',
+          tag: 'myfam-join'
+        });
+        n.onclick = () => { window.focus(); n.close(); };
+      } catch {}
+    }
   }
 
   function sendSignaling(type, payload = {}) {
@@ -508,6 +545,7 @@
       case 'peer-joined': {
         const peer = ensurePeer(payload.id, payload.name);
         showToast(`${peer.name} joined`);
+        notifyPeerJoined(peer.name);
         if (!peer.pc) {
           createPeerConnection(payload.id);
         }
@@ -949,7 +987,7 @@
     if (els.modalStealthToggle) els.modalStealthToggle.checked = active;
     if (els.quickStealthBtn) {
       els.quickStealthBtn.classList.toggle('active', active);
-      els.quickStealthBtn.textContent = active ? 'Relay: ON' : 'Relay';
+      els.quickStealthBtn.textContent = active ? t('relayOn') : t('relay');
     }
   }
 
@@ -1596,8 +1634,11 @@
 
     state.joining = true;
     state.callGeneration++;
-    // Unlock audio on the user's gesture, before permission prompts/network waits.
+    // Unlock audio and ask for notification permission on user gesture
     prepareAudio().catch(err => console.warn('[Audio]', err));
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
     // Visual button feedback
     const originalBtnContent = els.joinBtn ? els.joinBtn.innerHTML : 'Start / Join Call';
     if (els.joinBtn) {
@@ -1657,7 +1698,7 @@
     state.joinTimer = null;
     state.joining = false;
     els.joinBtn.disabled = false;
-    els.joinBtn.innerHTML = '<span>Start / Join Call</span>';
+    els.joinBtn.innerHTML = `<span>${t('startCall')}</span>`;
   }
 
   function failJoin(message) {
@@ -1742,6 +1783,15 @@
       applyBitrateConstraints();
     });
 
+    if (els.langSelect) {
+      els.langSelect.addEventListener('change', (e) => {
+        window.MyFamI18n?.setPreference(e.target.value);
+        if (state.ws?.readyState === WebSocket.OPEN) updateServerStatus('connected', t('online'));
+        else updateServerStatus('error', t('offline'));
+        setStealthUiState(state.isStealthActive || (state.peers.size === 0 && state.forceStealth));
+      });
+    }
+
     if (els.nameInput) {
       els.nameInput.addEventListener('input', syncSavedName);
     }
@@ -1787,18 +1837,18 @@
       const code = formatCode(rawCode);
       const clean = code.replace(/[^a-zA-Z0-9]/g, '');
       if (clean.length !== 6) {
-        showToast('Enter a 6-character code first.');
+        showToast(t('enterCodeFirst'));
         return;
       }
       const url = `${window.location.origin}${window.location.pathname}#${clean}`;
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(() => {
-          showToast(`Invite link copied (${code})`);
+          showToast(t('inviteCopied', { code }));
         }).catch(() => {
-          showToast(`Code: ${code}`);
+          showToast(`${code}`);
         });
       } else {
-        showToast(`Code: ${code}`);
+        showToast(`${code}`);
       }
     }
 
