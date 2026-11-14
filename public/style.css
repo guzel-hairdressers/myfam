@@ -746,6 +746,19 @@ html, body {
   inset: 0;
   background-color: #050507;
   z-index: 30;
+  --surface: #121216;
+  --surface-elevated: #19191f;
+  --surface-hover: #202028;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --text: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --accent: #10b981;
+  --accent-hover: #34d399;
+  --accent-soft: rgba(16, 185, 129, 0.14);
+  --live-text: #6ee7b7;
+  color: var(--text);
 }
 
 .call-top-bar {
