@@ -1266,12 +1266,12 @@ html, body {
   transform: translateX(-50%);
   background-color: rgba(24, 24, 29, 0.92);
   backdrop-filter: blur(12px);
-  color: var(--text);
+  color: #fafafa;
   padding: 9px 16px;
   border-radius: var(--radius-full);
   font-size: 0.83rem;
   font-weight: 500;
-  border: 1px solid var(--border-strong);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   z-index: 200;
   white-space: nowrap;
