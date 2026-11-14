@@ -285,7 +285,7 @@
     }
 
     saveLocalContacts(contacts);
-    showToast(`Saved ${name} to your contacts`);
+    showToast(`Saved ${name} to Call Groups`);
   }
 
   function deleteContact(code) {
@@ -309,7 +309,7 @@
     if (contacts.length === 0) {
       els.contactsList.innerHTML = `
         <div class="empty-contacts">
-          No saved contacts yet. Add family codes below or save them during a call.
+          ${escapeHtml(t('noContacts'))}
         </div>
       `;
       return;
@@ -675,7 +675,7 @@
 
     tile.querySelector('.tile-rename-btn').addEventListener('click', () => {
       if (!state.activeCode) return;
-      openContactModal('Save Contact', peer.name, formatCode(state.activeCode));
+      openContactModal(t('saveContact'), peer.name, formatCode(state.activeCode));
     });
 
     els.remoteGrid.appendChild(tile);
@@ -1864,7 +1864,7 @@
     });
 
     els.addContactBtn.addEventListener('click', () => {
-      openContactModal('Save Contact to Phone', '', els.codeInput.value || generateRandomCode());
+      openContactModal(t('saveContact'), '', els.codeInput.value || generateRandomCode());
     });
 
     els.closeContactModalBtn.addEventListener('click', () => {
@@ -1879,7 +1879,7 @@
       const name = els.contactNameInput.value.trim();
       const code = els.contactCodeInput.value.trim();
       if (!name) {
-        alert('Please enter a name for this contact');
+        alert('Please enter a name for this group');
         return;
       }
       if (!code) {
