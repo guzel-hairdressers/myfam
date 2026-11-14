@@ -13,9 +13,11 @@ class RelayAudioProcessor extends AudioWorkletProcessor {
     this.prevIn = 0;
     this.prevOut = 0;
 
-    // Smooth noise gate state
+    // Smooth noise gate + anti-howl state
     this.gateGain = 0;
     this.holdSamples = 0;
+    this.howlSamples = 0;
+    this.howlGain = 1;
   }
 
   process(inputs) {
@@ -23,7 +25,7 @@ class RelayAudioProcessor extends AudioWorkletProcessor {
     if (!channels?.length) return true;
     const len = channels[0].length;
 
-    // Measure block RMS to decide whether voice is present
+    // Measure block RMS to decide whether voice or sustained howl is present
     let sqSum = 0;
     for (let i = 0; i < len; i++) {
       let sample = 0;
@@ -32,8 +34,16 @@ class RelayAudioProcessor extends AudioWorkletProcessor {
       sqSum += sample * sample;
     }
     const rms = Math.sqrt(sqSum / len);
-    const gateOpen = rms > 0.008; // Suppresses low-level room hum / hiss
-    if (gateOpen) this.holdSamples = Math.round(sampleRate * 0.25); // 250ms holdover tail
+    const gateOpen = rms > 0.015; // Suppresses low-level room hum / hiss
+    if (gateOpen) this.holdSamples = Math.round(sampleRate * 0.22); // 220ms holdover tail
+
+    // Sustained high-energy input (>200ms) indicates acoustic feedback howling; duck it
+    if (rms > 0.22) {
+      this.howlSamples = Math.min(sampleRate, this.howlSamples + len);
+    } else {
+      this.howlSamples = Math.max(0, this.howlSamples - len * 2);
+    }
+    const targetHowlGain = this.howlSamples > sampleRate * 0.2 ? 0.2 : 1;
 
     for (let i = 0; i < len; i++) {
       let sample = 0;
@@ -45,12 +55,13 @@ class RelayAudioProcessor extends AudioWorkletProcessor {
       this.prevIn = sample;
       this.prevOut = hp;
 
-      // Smooth gate envelope (avoids hard clicks)
-      const targetGain = this.holdSamples > 0 ? 1 : 0.05;
+      // Smooth gate + anti-howl envelope (true silence when gate closed)
+      const targetGain = this.holdSamples > 0 ? 1 : 0;
       if (this.holdSamples > 0) this.holdSamples--;
       this.gateGain += (targetGain - this.gateGain) * 0.02;
+      this.howlGain += (targetHowlGain - this.howlGain) * 0.005;
 
-      this.sum += hp * this.gateGain;
+      this.sum += hp * this.gateGain * this.howlGain;
       this.count++;
       this.phase += 16000;
       if (this.phase >= sampleRate) {

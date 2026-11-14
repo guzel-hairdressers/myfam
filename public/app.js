@@ -926,10 +926,31 @@
     }
   }
 
+  function setStealthUiState(active) {
+    if (els.modalStealthToggle) els.modalStealthToggle.checked = active;
+    if (els.quickStealthBtn) {
+      els.quickStealthBtn.classList.toggle('active', active);
+      els.quickStealthBtn.textContent = active ? 'Relay: ON' : 'Relay';
+    }
+  }
+
+  function toggleStealthPreference(enable) {
+    state.forceStealth = enable;
+    if (state.peers.size === 0) {
+      setStealthUiState(enable);
+      updateRouteBadge(enable ? 'Relay Armed' : 'Waiting', enable ? 'stealth' : 'checking');
+      showToast(enable ? 'Relay enabled — will connect via server.' : 'Relay disabled — will use direct P2P.');
+      return;
+    }
+    if (enable) activateStealthMode();
+    else deactivateStealthMode();
+  }
+
   // --- Dual-Engine: "Stealth Mode" (TLS Port 443 WebSocket Tunneling) ---
   function activateStealthMode(notifyPeer = true) {
     if (state.isStealthActive || state.peers.size === 0) return;
     state.isStealthActive = true;
+    state.forceStealth = true;
     for (const peer of state.peers.values()) {
       closePeerConnection(peer);
       peer.pendingCandidates = [];
@@ -941,7 +962,7 @@
     updateGridLayout();
     updateRouteBadge('WebSocket Relay', 'stealth');
     showToast('Relay active via TLS port 443.');
-    els.modalStealthToggle.checked = true;
+    setStealthUiState(true);
     els.remoteGrid.classList.add('hidden');
     els.remoteCanvas.classList.remove('hidden');
     startStealthAudioStream();
@@ -951,6 +972,7 @@
   function deactivateStealthMode(notifyPeer = true, reconnect = true) {
     if (!state.isStealthActive) return;
     state.isStealthActive = false;
+    state.forceStealth = false;
     stopStealthAudioStream();
     stopStealthVideoStream();
     if (state.stealthAudioContext) {
@@ -958,12 +980,13 @@
       state.stealthAudioContext = null;
     }
     state.nextAudioTime = 0;
-    els.modalStealthToggle.checked = false;
+    setStealthUiState(false);
     els.remoteCanvas.classList.add('hidden');
     els.remoteGrid.classList.remove('hidden');
     updateGridLayout();
     if (reconnect && state.peers.size > 0) {
       updateRouteBadge('Connecting...', 'checking');
+      showToast('Switching back to direct P2P...');
       for (const peer of state.peers.values()) {
         if (notifyPeer) sendSignaling('stealth-toggle', { targetId: peer.id, enabled: false });
         if (state.clientId < peer.id) initiateCall(peer.id);
@@ -995,6 +1018,8 @@
       state.stealthAudioNode = node;
       node.port.onmessage = ({ data }) => {
         if (!state.isStealthActive || state.isAudioMuted || state.stealthAudioNode !== node) return;
+        // Echo-loop guard: suppress Relay mic transmission while remote Relay audio is playing (+120ms tail)
+        if (state.stealthAudioContext && state.stealthAudioContext.currentTime < state.nextAudioTime + 0.12) return;
         if (state.ws?.readyState !== WebSocket.OPEN || state.ws.bufferedAmount > 16 * 1024) return;
         const packet = new Uint8Array(data.byteLength + 1);
         packet[0] = 0x01; // 16 kHz, mono, signed PCM16 little endian
@@ -1706,15 +1731,14 @@
     });
 
     els.modalStealthToggle.addEventListener('change', (e) => {
-      if (e.target.checked) activateStealthMode();
-      else deactivateStealthMode();
+      toggleStealthPreference(e.target.checked);
     });
 
     // One-tap instant bypass button on the HUD
     if (els.quickStealthBtn) {
       els.quickStealthBtn.addEventListener('click', () => {
-        if (!state.isStealthActive) activateStealthMode();
-        else deactivateStealthMode();
+        const nextActive = !(state.isStealthActive || (state.peers.size === 0 && state.forceStealth));
+        toggleStealthPreference(nextActive);
       });
     }
 

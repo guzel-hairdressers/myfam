@@ -658,6 +658,11 @@ html, body {
   background-color: rgba(255, 255, 255, 0.16);
 }
 
+.pill-action-btn.active {
+  background-color: rgba(91, 141, 239, 0.25);
+  color: #a8c7ff;
+}
+
 /* Video Stage */
 .video-stage {
   flex: 1;
