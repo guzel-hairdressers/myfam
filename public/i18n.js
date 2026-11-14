@@ -4,7 +4,7 @@
   const TRANSLATIONS = {
     en: {
       heroTitle: 'Join',
-      heroSubtitle: 'Share a code or tap a room.',
+      heroSubtitle: 'Share a code or tap a room',
       callCode: 'Call code',
       yourName: 'Your name',
       optional: '(optional)',
@@ -90,7 +90,7 @@
     },
     ru: {
       heroTitle: 'Присоединяйся',
-      heroSubtitle: 'Поделись кодом или выбери комнату.',
+      heroSubtitle: 'Поделись кодом или выбери комнату',
       callCode: 'Код звонка',
       yourName: 'Твоё имя',
       optional: '(необязательно)',
@@ -176,7 +176,7 @@
     },
     es: {
       heroTitle: 'Unirse',
-      heroSubtitle: 'Comparte un código o toca una sala.',
+      heroSubtitle: 'Comparte un código o toca una sala',
       callCode: 'Código de llamada',
       yourName: 'Tu nombre',
       optional: '(opcional)',
@@ -252,7 +252,7 @@
     },
     fr: {
       heroTitle: 'Rejoindre',
-      heroSubtitle: 'Partagez un code ou touchez une salle.',
+      heroSubtitle: 'Partagez un code ou touchez une salle',
       callCode: "Code d'appel",
       yourName: 'Votre nom',
       optional: '(optionnel)',
@@ -328,7 +328,7 @@
     },
     de: {
       heroTitle: 'Beitreten',
-      heroSubtitle: 'Code teilen oder Raum antippen.',
+      heroSubtitle: 'Code teilen oder Raum antippen',
       callCode: 'Anrufcode',
       yourName: 'Dein Name',
       optional: '(optional)',
@@ -404,7 +404,7 @@
     },
     zh: {
       heroTitle: '加入通话',
-      heroSubtitle: '分享通话码或点击房间。',
+      heroSubtitle: '分享通话码或点击房间',
       callCode: '通话码',
       yourName: '您的名字',
       optional: '（可选）',
@@ -480,7 +480,7 @@
     },
     tr: {
       heroTitle: 'Katıl',
-      heroSubtitle: 'Kod paylaşın veya odaya dokunun.',
+      heroSubtitle: 'Kod paylaşın veya odaya dokunun',
       callCode: 'Arama kodu',
       yourName: 'Adınız',
       optional: '(isteğe bağlı)',
