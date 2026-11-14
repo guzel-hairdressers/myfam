@@ -111,7 +111,8 @@
 
   const storage = {
     getItem(key) { try { return localStorage.getItem(key); } catch { return null; } },
-    setItem(key, value) { try { localStorage.setItem(key, value); } catch { showToast('Browser storage unavailable. Changes will not be saved.'); } }
+    setItem(key, value) { try { localStorage.setItem(key, value); } catch { showToast('Browser storage unavailable. Changes will not be saved.'); } },
+    removeItem(key) { try { localStorage.removeItem(key); } catch {} }
   };
 
   // DOM Elements holder
@@ -1618,7 +1619,7 @@
         console.log('[WS] Reconnecting socket before joining...');
         connectSignaling();
         let waitCount = 0;
-        while ((!state.ws || state.ws.readyState !== WebSocket.OPEN) && waitCount < 30) {
+        while ((!state.ws || state.ws.readyState !== WebSocket.OPEN) && waitCount < 150) {
           await new Promise(r => setTimeout(r, 100));
           waitCount++;
         }
