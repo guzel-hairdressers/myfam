@@ -125,6 +125,7 @@
   function initElements() {
     els.serverStatusBadge = document.getElementById('serverStatusBadge');
     els.serverStatusText = document.getElementById('serverStatusText');
+    els.themeToggleBtn = document.getElementById('themeToggleBtn');
     els.langSelect = document.getElementById('langSelect');
     els.lobbyView = document.getElementById('lobbyView');
     els.callView = document.getElementById('callView');
@@ -179,9 +180,41 @@
   }
 
   // --- Initialize App ---
+  function getEffectiveTheme() {
+    const saved = storage.getItem('myfam_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  }
+
+  function applyTheme(pref) {
+    if (pref === 'light' || pref === 'dark') {
+      document.documentElement.setAttribute('data-theme', pref);
+    } else {
+      document.documentElement.removeAttribute('data-theme');
+    }
+    const isLight = getEffectiveTheme() === 'light';
+    if (els.themeToggleBtn) {
+      els.themeToggleBtn.querySelector('.icon-sun')?.classList.toggle('hidden', !isLight);
+      els.themeToggleBtn.querySelector('.icon-moon')?.classList.toggle('hidden', isLight);
+    }
+  }
+
+  function initTheme() {
+    applyTheme(storage.getItem('myfam_theme'));
+    if (window.matchMedia) {
+      const mq = window.matchMedia('(prefers-color-scheme: light)');
+      const onChange = () => {
+        if (!storage.getItem('myfam_theme')) applyTheme(null);
+      };
+      if (mq.addEventListener) mq.addEventListener('change', onChange);
+      else if (mq.addListener) mq.addListener(onChange);
+    }
+  }
+
   function init() {
     console.log('[MyFam] Initializing application...');
     initElements();
+    initTheme();
     window.MyFamI18n?.applyTranslations();
     setupURLParams();
     setupEventListeners();
@@ -1861,6 +1894,14 @@
       storage.setItem('myfam_preset', state.currentPreset);
       applyBitrateConstraints();
     });
+
+    if (els.themeToggleBtn) {
+      els.themeToggleBtn.addEventListener('click', () => {
+        const next = getEffectiveTheme() === 'light' ? 'dark' : 'light';
+        storage.setItem('myfam_theme', next);
+        applyTheme(next);
+      });
+    }
 
     if (els.langSelect) {
       els.langSelect.addEventListener('change', (e) => {

@@ -24,6 +24,55 @@
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 }
 
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-elevated: #f1f3f5;
+    --surface-hover: #e9ecef;
+    --border: rgba(15, 23, 42, 0.09);
+    --border-strong: rgba(15, 23, 42, 0.18);
+    --text: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --accent: #059669;
+    --accent-hover: #10b981;
+    --accent-soft: rgba(5, 150, 105, 0.12);
+  }
+}
+
+:root[data-theme="light"] {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --surface-elevated: #f1f3f5;
+  --surface-hover: #e9ecef;
+  --border: rgba(15, 23, 42, 0.09);
+  --border-strong: rgba(15, 23, 42, 0.18);
+  --text: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent: #059669;
+  --accent-hover: #10b981;
+  --accent-soft: rgba(5, 150, 105, 0.12);
+}
+
+:root[data-theme="light"] .card {
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+}
+
+:root[data-theme="light"] .btn-primary {
+  color: #ffffff;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .card {
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
+  }
+  :root:not([data-theme="dark"]) .btn-primary {
+    color: #ffffff;
+  }
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -91,7 +140,28 @@ html, body {
   gap: 8px;
 }
 
+.theme-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
 .lang-select {
+  appearance: none;
+  -webkit-appearance: none;
   background-color: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
@@ -99,7 +169,8 @@ html, body {
   font-family: inherit;
   font-size: 0.74rem;
   font-weight: 500;
-  padding: 5px 10px;
+  padding: 5px 12px;
+  text-align: center;
   outline: none;
   cursor: pointer;
 }
