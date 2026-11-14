@@ -126,6 +126,7 @@
     els.codeInput = document.getElementById('codeInput');
     els.newCodeBtn = document.getElementById('newCodeBtn');
     els.nameInput = document.getElementById('nameInput');
+    els.rememberNameCheckbox = document.getElementById('rememberNameCheckbox');
     els.presetSelect = document.getElementById('presetSelect');
     els.forceStealthCheckbox = document.getElementById('forceStealthModeCheckbox');
     els.joinBtn = document.getElementById('joinBtn');
@@ -211,9 +212,25 @@
     }
   }
 
+  function syncSavedName() {
+    const shouldRemember = !els.rememberNameCheckbox || els.rememberNameCheckbox.checked;
+    storage.setItem('myfam_remember_name', shouldRemember ? 'true' : 'false');
+    const trimmed = els.nameInput ? els.nameInput.value.trim() : '';
+    if (shouldRemember && trimmed) {
+      storage.setItem('myfam_myname', trimmed);
+    } else {
+      storage.removeItem('myfam_myname');
+    }
+  }
+
   function loadSavedSettings() {
+    const rememberName = storage.getItem('myfam_remember_name') !== 'false';
+    if (els.rememberNameCheckbox) els.rememberNameCheckbox.checked = rememberName;
+
     const savedName = storage.getItem('myfam_myname');
-    if (savedName) els.nameInput.value = savedName;
+    if (rememberName && savedName && savedName !== 'Family Member') {
+      els.nameInput.value = savedName;
+    }
 
     const savedPreset = storage.getItem('myfam_preset');
     if (savedPreset && (PRESETS[savedPreset] || savedPreset === 'auto')) {
@@ -1573,7 +1590,7 @@
     const name = (els.nameInput ? els.nameInput.value.trim() : '') || 'Family Member';
     state.userName = name;
     state.forceStealth = els.forceStealthCheckbox ? els.forceStealthCheckbox.checked : false;
-    storage.setItem('myfam_myname', name);
+    syncSavedName();
 
     state.joining = true;
     state.callGeneration++;
@@ -1722,6 +1739,14 @@
       storage.setItem('myfam_preset', state.currentPreset);
       applyBitrateConstraints();
     });
+
+    if (els.nameInput) {
+      els.nameInput.addEventListener('input', syncSavedName);
+    }
+
+    if (els.rememberNameCheckbox) {
+      els.rememberNameCheckbox.addEventListener('change', syncSavedName);
+    }
 
     els.modalPresetSelect.addEventListener('change', (e) => {
       state.currentPreset = e.target.value;
