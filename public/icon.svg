@@ -11,10 +11,10 @@
   </defs>
   <rect width="512" height="512" rx="124" fill="url(#bg)"/>
   <rect x="8" y="8" width="496" height="496" rx="118" fill="none" stroke="url(#shine)" stroke-width="8"/>
-  <!-- Left person -->
-  <circle cx="196" cy="204" r="46" fill="#ffffff"/>
-  <path d="M116 346c0-42 36-72 80-72s80 30 80 72" fill="#ffffff" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- Right person (softly layered) -->
-  <circle cx="318" cy="188" r="40" fill="#ffffff" fill-opacity="0.72"/>
-  <path d="M262 324c6-34 34-56 68-56 36 0 64 26 66 62" fill="#ffffff" fill-opacity="0.72" stroke="#ffffff" stroke-opacity="0.72" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Left person (large) -->
+  <circle cx="184" cy="176" r="64" fill="#ffffff"/>
+  <path d="M72 394c0-64 50-108 112-108s112 44 112 108" fill="#ffffff" stroke="#ffffff" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Right person (large, softly layered) -->
+  <circle cx="338" cy="160" r="54" fill="#ffffff" fill-opacity="0.78"/>
+  <path d="M266 368c8-52 46-86 92-86 48 0 86 38 88 90" fill="#ffffff" fill-opacity="0.78" stroke="#ffffff" stroke-opacity="0.78" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
