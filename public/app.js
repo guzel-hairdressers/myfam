@@ -1623,11 +1623,12 @@
     const cleanCode = formatted.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 
     if (!/^[a-z0-9]{6}$/.test(cleanCode)) {
-      showJoinError('Please enter a valid call code (e.g. 742-918)');
+      showJoinError(t('invalidCode'));
       return;
     }
 
-    const name = (els.nameInput ? els.nameInput.value.trim() : '') || 'Family Member';
+    const enteredName = els.nameInput ? els.nameInput.value.trim() : '';
+    const name = enteredName || `Guest-${Math.floor(100 + Math.random() * 900)}`;
     state.userName = name;
     state.forceStealth = els.forceStealthCheckbox ? els.forceStealthCheckbox.checked : false;
     syncSavedName();
