@@ -1,5 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#09090b"/>
-  <rect x="24" y="24" width="464" height="464" rx="96" fill="#10b981" fill-opacity="0.12" stroke="#10b981" stroke-opacity="0.28" stroke-width="8"/>
-  <path d="M354 318.5v42a28 28 0 0 1-30.5 28 277 277 0 0 1-120.8-43 273 273 0 0 1-84-84 277 277 0 0 1-43-121.4A28 28 0 0 1 103.5 112h42a28 28 0 0 1 28 24.1 179.8 179.8 0 0 0 9.8 39.3 28 28 0 0 1-6.3 29.5l-17.8 17.8a224 224 0 0 0 84 84l17.8-17.8a28 28 0 0 1 29.5-6.3 179.8 179.8 0 0 0 39.3 9.8 28 28 0 0 1 24.2 26.1z" fill="none" stroke="#34d399" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="124" fill="url(#bg)"/>
+  <rect x="8" y="8" width="496" height="496" rx="118" fill="none" stroke="url(#shine)" stroke-width="8"/>
+  <!-- Left person -->
+  <circle cx="196" cy="204" r="46" fill="#ffffff"/>
+  <path d="M116 346c0-42 36-72 80-72s80 30 80 72" fill="#ffffff" stroke="#ffffff" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Right person (softly layered) -->
+  <circle cx="318" cy="188" r="40" fill="#ffffff" fill-opacity="0.72"/>
+  <path d="M262 324c6-34 34-56 68-56 36 0 64 26 66 62" fill="#ffffff" fill-opacity="0.72" stroke="#ffffff" stroke-opacity="0.72" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
