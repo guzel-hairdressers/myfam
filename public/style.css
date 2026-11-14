@@ -22,6 +22,12 @@
   --radius-full: 9999px;
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
   --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --status-online: #a7f3d0;
+  --status-connecting: #fde68a;
+  --status-error: #fca5a5;
+  --live-text: #6ee7b7;
+  --avatar-bg: linear-gradient(135deg, #27272a, #3f3f46);
+  --avatar-text: #fafafa;
 }
 
 @media (prefers-color-scheme: light) {
@@ -38,6 +44,12 @@
     --accent: #059669;
     --accent-hover: #10b981;
     --accent-soft: rgba(5, 150, 105, 0.12);
+    --status-online: #047857;
+    --status-connecting: #b45309;
+    --status-error: #b91c1c;
+    --live-text: #047857;
+    --avatar-bg: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    --avatar-text: #0f172a;
   }
 }
 
@@ -54,6 +66,12 @@
   --accent: #059669;
   --accent-hover: #10b981;
   --accent-soft: rgba(5, 150, 105, 0.12);
+  --status-online: #047857;
+  --status-connecting: #b45309;
+  --status-error: #b91c1c;
+  --live-text: #047857;
+  --avatar-bg: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+  --avatar-text: #0f172a;
 }
 
 :root[data-theme="light"] .card {
@@ -206,7 +224,7 @@ html, body {
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 .status-connected {
-  color: #a7f3d0;
+  color: var(--status-online);
 }
 
 .status-connecting .status-dot {
@@ -214,14 +232,14 @@ html, body {
   animation: pulse 1.4s infinite ease-in-out;
 }
 .status-connecting {
-  color: #fde68a;
+  color: var(--status-connecting);
 }
 
 .status-error .status-dot {
   background-color: var(--danger);
 }
 .status-error {
-  color: #fca5a5;
+  color: var(--status-error);
 }
 
 /* Main Views */
@@ -599,8 +617,8 @@ html, body {
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #27272a, #3f3f46);
-  color: var(--text);
+  background: var(--avatar-bg);
+  color: var(--avatar-text);
   font-size: 0.88rem;
   font-weight: 600;
   display: flex;
@@ -659,7 +677,7 @@ html, body {
 .btn-dial.is-live {
   background-color: rgba(16, 185, 129, 0.22);
   border-color: rgba(16, 185, 129, 0.55);
-  color: #6ee7b7;
+  color: var(--live-text);
 }
 
 .btn-primary.btn-join-active {
@@ -684,7 +702,7 @@ html, body {
   border-radius: var(--radius-full);
   background-color: rgba(16, 185, 129, 0.18);
   border: 1px solid rgba(16, 185, 129, 0.4);
-  color: #a7f3d0;
+  color: var(--live-text);
   font-size: 0.68rem;
   font-weight: 600;
   line-height: 1;

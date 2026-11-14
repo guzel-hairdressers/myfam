@@ -320,14 +320,14 @@
     }
 
     saveLocalContacts(contacts);
-    showToast(`Saved ${name} to Call Groups`);
+    showToast(t('groupSaved', { name }));
   }
 
   function deleteContact(code) {
     const cleanCode = formatCode(code);
     const contacts = getLocalContacts().filter(c => c.code.replace('-', '') !== cleanCode.replace('-', ''));
     saveLocalContacts(contacts);
-    showToast('Contact removed');
+    showToast(t('groupRemoved'));
   }
 
   function getContactNameForCode(code) {
@@ -411,7 +411,7 @@
       const presenceHtml = isLive
         ? `<span class="group-presence">${activePeers.slice(0, 5).map(p => `<span class="presence-chip" title="${escapeHtml(p.name)}">${escapeHtml(getPeerBadge(p.name))}</span>`).join('')}</span>`
         : '';
-      const dialLabel = isLive ? t('joinShort') : 'Call';
+      const dialLabel = isLive ? t('joinShort') : t('callShort');
       const item = document.createElement('div');
       item.className = 'contact-item';
       item.innerHTML = `
@@ -455,7 +455,7 @@
 
     els.contactsList.querySelectorAll('.btn-rename').forEach(btn => {
       btn.addEventListener('click', () => {
-        openContactModal('Rename Contact', btn.dataset.name, btn.dataset.code);
+        openContactModal(t('renameGroup'), btn.dataset.name, btn.dataset.code);
       });
     });
 
@@ -508,8 +508,8 @@
       stopPresencePolling();
       if (state.activeCode) {
         cleanupPeer();
-        updateRouteBadge('Reconnecting...', 'checking');
-        showToast('Connection lost. Reconnecting to your call...');
+        updateRouteBadge(t('reconnecting'), 'checking');
+        showToast(t('connLostToast'));
       } else if (state.joining) {
         failJoin('Connection lost. Please try again.');
       }
@@ -651,7 +651,7 @@
 
       case 'peer-joined': {
         const peer = ensurePeer(payload.id, payload.name);
-        showToast(`${peer.name} joined`);
+        showToast(t('peerJoined', { name: peer.name }));
         notifyPeerJoined(peer.name);
         if (!peer.pc) {
           createPeerConnection(payload.id);
@@ -814,7 +814,7 @@
     updateGridLayout();
     if (state.peers.size === 0) {
       deactivateStealthMode(false, false);
-      updateRouteBadge('Waiting for family', 'checking');
+      updateRouteBadge(t('waitingForFamilyBadge'), 'checking');
     }
   }
 
@@ -899,10 +899,10 @@
 
       if (iceState === 'connected' || iceState === 'completed') {
         clearIceTimeout(peerId);
-        updateRouteBadge('P2P Direct', 'connected');
+        updateRouteBadge(t('p2pDirect'), 'connected');
         applyBitrateConstraints();
       } else if (iceState === 'checking') {
-        updateRouteBadge('Connecting...', 'checking');
+        updateRouteBadge(t('connectingBtn'), 'checking');
         startIceTimeout(peerId);
       } else if (iceState === 'disconnected') {
         startIceTimeout(peerId);
@@ -926,7 +926,7 @@
       if (!peer.pc) return;
       const iceState = peer.pc.iceConnectionState;
       if (['checking', 'new', 'disconnected'].includes(iceState) && state.peers.size === 1) {
-        showToast('NAT/Firewall detected. Routing media over TLS port 443...');
+        showToast(t('natFallbackToast'));
         activateStealthMode();
       }
     }, 6000);
@@ -1102,8 +1102,8 @@
     state.forceStealth = enable;
     if (state.peers.size === 0) {
       setStealthUiState(enable);
-      updateRouteBadge(enable ? 'Relay Armed' : 'Waiting', enable ? 'stealth' : 'checking');
-      showToast(enable ? 'Relay enabled — will connect via server.' : 'Relay disabled — will use direct P2P.');
+      updateRouteBadge(enable ? t('relayArmed') : t('waiting'), enable ? 'stealth' : 'checking');
+      showToast(enable ? t('relayEnabledToast') : t('relayDisabledToast'));
       return;
     }
     if (enable) activateStealthMode();
@@ -1124,8 +1124,8 @@
       if (notifyPeer) sendSignaling('stealth-toggle', { targetId: peer.id, enabled: true });
     }
     updateGridLayout();
-    updateRouteBadge('WebSocket Relay', 'stealth');
-    showToast('Relay active via TLS port 443.');
+    updateRouteBadge(t('wsRelay'), 'stealth');
+    showToast(t('relayActiveToast'));
     setStealthUiState(true);
     els.remoteGrid.classList.add('hidden');
     els.remoteCanvas.classList.remove('hidden');
@@ -1149,8 +1149,8 @@
     els.remoteGrid.classList.remove('hidden');
     updateGridLayout();
     if (reconnect && state.peers.size > 0) {
-      updateRouteBadge('Connecting...', 'checking');
-      showToast('Switching back to direct P2P...');
+      updateRouteBadge(t('connectingBtn'), 'checking');
+      showToast(t('switchingP2pToast'));
       for (const peer of state.peers.values()) {
         if (notifyPeer) sendSignaling('stealth-toggle', { targetId: peer.id, enabled: false });
         if (state.clientId < peer.id) initiateCall(peer.id);
@@ -1458,14 +1458,14 @@
     els.toggleMicBtn.querySelector('.icon-mic-on').classList.toggle('hidden', state.isAudioMuted);
     els.toggleMicBtn.querySelector('.icon-mic-off').classList.toggle('hidden', !state.isAudioMuted);
 
-    showToast(state.isAudioMuted ? 'Muted' : 'Unmuted');
+    showToast(state.isAudioMuted ? t('muted') : t('unmuted'));
   }
 
   function toggleCamera() {
     if (!state.localStream) return;
     const videoTrack = state.localStream.getVideoTracks()[0];
     if (!videoTrack) {
-      showToast('No camera found on this device');
+      showToast(t('noCamToast'));
       return;
     }
 
@@ -1491,7 +1491,7 @@
       else startStealthVideoStream();
     }
 
-    showToast(state.isVideoOff ? 'Camera off (Voice Only)' : 'Camera turned on');
+    showToast(state.isVideoOff ? t('camOff') : t('camOn'));
   }
 
   async function flipCamera() {
@@ -1751,7 +1751,7 @@
     const originalBtnContent = els.joinBtn ? els.joinBtn.innerHTML : 'Start / Join Call';
     if (els.joinBtn) {
       els.joinBtn.disabled = true;
-      els.joinBtn.innerHTML = '<span class="btn-spinner"></span> <span>Connecting...</span>';
+      els.joinBtn.innerHTML = `<span class="btn-spinner"></span> <span>${escapeHtml(t('connectingBtn'))}</span>`;
     }
 
     function resetBtn() {
@@ -1793,7 +1793,7 @@
       });
 
       state.joinTimer = setTimeout(() => {
-        if (!state.activeCode) { sendSignaling('leave'); failJoin('The server did not respond. Please try again.'); }
+        if (!state.activeCode) { sendSignaling('leave'); failJoin(t('serverNoResp')); }
       }, 10000);
     } catch (err) {
       console.error('[MyFam] Join error:', err);
